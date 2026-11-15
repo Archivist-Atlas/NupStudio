@@ -10,6 +10,12 @@
 #include <vector>
 
 #include <SDL3/SDL_vulkan.h>
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 #include "vk.h"
 
@@ -311,11 +317,32 @@ VulkanContext& Vk() {
         SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1"); // (controllers also work while the window is unfocused)
         if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_AUDIO)) rt::Fatal("SDL_Init: %s", SDL_GetError());
         gfx::Current();
-        vk.window = SDL_CreateWindow("TOoT:R", 1920, 1080,
+        vk.window = SDL_CreateWindow("The Legend of Zelda: Ocarina of Time (Switch recomp) - F11: fullscreen", 1280, 720,
                                      SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY | // (real pixels on scaled desktops: no compositor stretch)
                                      
                                      (std::getenv("OOT_WINDOW_HIDDEN") ? SDL_WINDOW_HIDDEN : 0));
         if (!vk.window) rt::Fatal("SDL_CreateWindow: %s", SDL_GetError());
+#ifdef _WIN32
+        if (HWND hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(vk.window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr)) {
+            wchar_t exePath[MAX_PATH]{};
+            GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+            std::wstring dir(exePath);
+            auto slash = dir.find_last_of(L"\\/");
+            if (slash != std::wstring::npos) dir.resize(slash);
+            std::wstring p1 = dir + L"\\game_icon.ico";
+            std::wstring p2 = dir + L"\\..\\game_icon.ico";
+            const wchar_t* candidates[] = {L"game_icon.ico", p1.c_str(), p2.c_str()};
+            for (const wchar_t* path : candidates) {
+                HICON big = (HICON)LoadImageW(nullptr, path, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+                HICON small = (HICON)LoadImageW(nullptr, path, IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_LOADFROMFILE);
+                if (big || small) {
+                    if (big) SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)big);
+                    if (small) SendMessageW(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)small);
+                    break;
+                }
+            }
+        }
+#endif
         CreateInstance(vk);
         if (!SDL_Vulkan_CreateSurface(vk.window, vk.instance, nullptr, &vk.surface))
             rt::Fatal("SDL_Vulkan_CreateSurface: %s", SDL_GetError());

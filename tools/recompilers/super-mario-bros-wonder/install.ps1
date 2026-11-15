@@ -264,7 +264,7 @@ if (Test-Path -LiteralPath $frameStatsPath) {
     }
 }
 
-# Confirmation popup when pressing Escape
+# Confirmation popup when pressing Escape + window icon from game_icon.ico
 $platWinPath = Join-Path $wonderSrc "runtime\src\platform_win.cpp"
 if (Test-Path -LiteralPath $platWinPath) {
     $pwTxt = Get-Content -LiteralPath $platWinPath -Raw -Encoding UTF8
@@ -280,8 +280,31 @@ if (w == VK_F11) toggle_fullscreen(h);
                 return 0;
             }
 "@
-        Set-Content -LiteralPath $platWinPath -Value $pwTxt -Encoding UTF8
     }
+    if ($pwTxt -notmatch "WM_SETICON") {
+        $pwTxt = $pwTxt -replace "(if \(const char\* f = std::getenv\(""NX_FULLSCREEN""\);)", @"
+    {
+        wchar_t exePath[MAX_PATH]{};
+        GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+        std::wstring dir(exePath);
+        auto slash = dir.find_last_of(L"\\/");
+        if (slash != std::wstring::npos) dir.resize(slash);
+        std::wstring p1 = dir + L"\\game_icon.ico";
+        const wchar_t* candidates[] = {L"game_icon.ico", p1.c_str()};
+        for (const wchar_t* path : candidates) {
+            HICON big = (HICON)LoadImageW(nullptr, path, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+            HICON small = (HICON)LoadImageW(nullptr, path, IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_LOADFROMFILE);
+            if (big || small) {
+                if (big) SendMessageW(g_window, WM_SETICON, ICON_BIG, (LPARAM)big);
+                if (small) SendMessageW(g_window, WM_SETICON, ICON_SMALL, (LPARAM)small);
+                break;
+            }
+        }
+    }
+    `$1
+"@
+    }
+    Set-Content -LiteralPath $platWinPath -Value $pwTxt -Encoding UTF8
 }
 
 # MinGW/Clang64 provides libxaudio2_8.a instead of xaudio2.lib

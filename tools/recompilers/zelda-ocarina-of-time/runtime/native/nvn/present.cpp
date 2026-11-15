@@ -355,6 +355,12 @@ void PresentPacing() {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_EVENT_QUIT) { SavePipelineCacheBlocking(); plist::Save(true); std::_Exit(0); }
+        if (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_F11 && !e.key.repeat) {
+            auto s = gfx::Current();
+            s.display_mode = (s.display_mode == 1) ? 0 : 1;
+            gfx::Set(s);
+            continue;
+        }
         if (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE && !e.key.repeat) {
             const SDL_MessageBoxButtonData buttons[] = {
                 { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Non" },

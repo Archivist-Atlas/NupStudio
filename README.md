@@ -10,6 +10,10 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
   <img src="assets/capture_2.jpg" alt="Super Mario Bros. Wonder recompilé sur PC Windows" width="900">
 </p>
 
+<p align="center">
+  <img src="assets/capture_3.jpg" alt="SThe Legend of Zelda: Ocarina of Time recompilé sur PC Windows" width="900">
+</p>
+
 ## Fonctionnalités
 
 - **Recompilateur** : glisser-déposer d'un fichier `.nup`, détection automatique du jeu et du recompileur associé, barre de progression, console temps réel et création de raccourci avec icône sur le Bureau.
