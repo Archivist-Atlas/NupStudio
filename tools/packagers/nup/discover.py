@@ -205,16 +205,18 @@ class Tree:
     # serial ids; see assign()
     children: list[int] = field(default_factory=list)
     pool: dict[bytes, int] = field(default_factory=dict)
+    _pool_size: int = 0
 
     @property
     def pool_size(self) -> int:
-        return sum(map(len, self.pool))
+        return self._pool_size
 
     def intern(self, name: bytes) -> int:
         off = self.pool.get(name)
         if off is None:
-            off = self.pool_size
+            off = self._pool_size
             self.pool[name] = off
+            self._pool_size += len(name)
         return off
 
     def add_tree(self, src: str) -> DirObj:
