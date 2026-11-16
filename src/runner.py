@@ -13,6 +13,7 @@ from typing import Optional
 
 from PySide6.QtCore import QThread, Signal
 
+from .recompiler_downloader import DownloadCancelledError, download_recompiler
 from .recompiler_manager import GameRecompiler
 
 
@@ -164,6 +165,33 @@ class RecompileWorker(QThread):
                 self.prompt_received.emit(to_emit, choices)
 
     def run(self) -> None:
+        entry_name = (
+            self.recompiler.windows_entrypoint
+            if os.name == "nt"
+            else self.recompiler.linux_entrypoint
+        )
+        entry_script = self.recompiler.folder / entry_name
+        if not entry_script.is_file() and self.recompiler.repo_url:
+            self.log_line.emit(
+                f"[Recompileur] Absent localement — téléchargement depuis {self.recompiler.repo_url}..."
+            )
+            try:
+                download_recompiler(
+                    self.recompiler.repo_url,
+                    self.recompiler.folder,
+                    branch=self.recompiler.branch,
+                    log_cb=self.log_line.emit,
+                    cancel_check=lambda: self._cancelled,
+                )
+            except DownloadCancelledError as exc:
+                self.finished_status.emit(False, str(exc))
+                return
+            except Exception as exc:
+                self.finished_status.emit(
+                    False, f"Échec du téléchargement du recompileur : {exc}"
+                )
+                return
+
         try:
             cmd = self._build_command()
         except Exception as exc:

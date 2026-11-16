@@ -24,6 +24,9 @@ class GameRecompiler:
     default_output_subdir: str
     shortcut_name: str = ""
     icon: str = ""
+    repo_url: str = ""
+    branch: str = "main"
+    is_installed: bool = True
 
     def supports_version(self, version: int) -> bool:
         return not self.supported_versions or version in self.supported_versions
@@ -49,11 +52,24 @@ class RecompilerManager:
     def __init__(self, root_dir: Path) -> None:
         self.root_dir = root_dir
         self.recompilers_dir = root_dir / "tools" / "recompilers"
+        self.catalog_path = root_dir / "tools" / "recompilers_catalog.json"
         self.games_db_path = root_dir / "tools" / "games_db.json"
         self.recompilers_dir.mkdir(parents=True, exist_ok=True)
         self._games_db: dict[str, str] = self._load_games_db()
+        self._catalog: list[dict] = self._load_catalog()
         self._recompilers: list[GameRecompiler] = []
         self.refresh()
+
+    def _load_catalog(self) -> list[dict]:
+        if not self.catalog_path.is_file():
+            return []
+        try:
+            data = json.loads(self.catalog_path.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                return [item for item in data if isinstance(item, dict)]
+        except (OSError, ValueError):
+            pass
+        return []
 
     def _load_games_db(self) -> dict[str, str]:
         if not self.games_db_path.is_file():
@@ -67,38 +83,72 @@ class RecompilerManager:
         return {}
 
     def refresh(self) -> list[GameRecompiler]:
-        """Reload all valid game recompiler subfolders from tools/recompilers/."""
+        """Reload local recompilers from tools/recompilers/ and merge remote catalog entries."""
+        catalog_by_id = {
+            str(item.get("id") or ""): item
+            for item in self._catalog
+            if item.get("id")
+        }
         found: list[GameRecompiler] = []
-        if not self.recompilers_dir.is_dir():
-            self._recompilers = found
-            return found
+        seen_ids: set[str] = set()
 
-        for entry in sorted(self.recompilers_dir.iterdir()):
-            if not entry.is_dir():
-                continue
-            manifest_path = entry / "recomp_manifest.json"
-            if not manifest_path.is_file():
-                continue
-            try:
-                data = json.loads(manifest_path.read_text(encoding="utf-8"))
-                found.append(
-                    GameRecompiler(
-                        id=str(data.get("id") or entry.name),
-                        name=str(data.get("name") or entry.name),
-                        recompiler_name=str(data.get("recompiler_name") or entry.name),
-                        title_ids=[str(t).upper() for t in data.get("title_ids", [])],
-                        supported_versions=[int(v) for v in data.get("supported_versions", [])],
-                        description=str(data.get("description") or ""),
-                        folder=entry,
-                        windows_entrypoint=str(data.get("windows_entrypoint") or "install.ps1"),
-                        linux_entrypoint=str(data.get("linux_entrypoint") or "install.sh"),
-                        default_output_subdir=str(data.get("default_output_subdir") or entry.name),
-                        shortcut_name=str(data.get("shortcut_name") or data.get("name") or entry.name),
-                        icon=str(data.get("icon") or ""),
+        if self.recompilers_dir.is_dir():
+            for entry in sorted(self.recompilers_dir.iterdir()):
+                if not entry.is_dir():
+                    continue
+                manifest_path = entry / "recomp_manifest.json"
+                if not manifest_path.is_file():
+                    continue
+                try:
+                    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    rec_id = str(data.get("id") or entry.name)
+                    cat = catalog_by_id.get(rec_id, {})
+                    found.append(
+                        GameRecompiler(
+                            id=rec_id,
+                            name=str(data.get("name") or entry.name),
+                            recompiler_name=str(data.get("recompiler_name") or entry.name),
+                            title_ids=[str(t).upper() for t in data.get("title_ids", [])],
+                            supported_versions=[int(v) for v in data.get("supported_versions", [])],
+                            description=str(data.get("description") or ""),
+                            folder=entry,
+                            windows_entrypoint=str(data.get("windows_entrypoint") or data.get("script") or "install.ps1"),
+                            linux_entrypoint=str(data.get("linux_entrypoint") or "install.sh"),
+                            default_output_subdir=str(data.get("default_output_subdir") or entry.name),
+                            shortcut_name=str(data.get("shortcut_name") or data.get("name") or entry.name),
+                            icon=str(data.get("icon") or ""),
+                            repo_url=str(data.get("repo_url") or cat.get("repo_url") or ""),
+                            branch=str(data.get("branch") or cat.get("branch") or "main"),
+                            is_installed=True,
+                        )
                     )
-                )
-            except (OSError, ValueError, TypeError):
+                    seen_ids.add(rec_id)
+                except (OSError, ValueError, TypeError):
+                    continue
+
+        for cat in self._catalog:
+            rec_id = str(cat.get("id") or "")
+            if not rec_id or rec_id in seen_ids:
                 continue
+            found.append(
+                GameRecompiler(
+                    id=rec_id,
+                    name=str(cat.get("name") or rec_id),
+                    recompiler_name=str(cat.get("recompiler_name") or rec_id),
+                    title_ids=[str(t).upper() for t in cat.get("title_ids", [])],
+                    supported_versions=[int(v) for v in cat.get("supported_versions", [])],
+                    description=str(cat.get("description") or ""),
+                    folder=self.recompilers_dir / rec_id,
+                    windows_entrypoint=str(cat.get("windows_entrypoint") or "install.ps1"),
+                    linux_entrypoint=str(cat.get("linux_entrypoint") or "install.sh"),
+                    default_output_subdir=str(cat.get("default_output_subdir") or rec_id),
+                    shortcut_name=str(cat.get("shortcut_name") or cat.get("name") or rec_id),
+                    icon=str(cat.get("icon") or ""),
+                    repo_url=str(cat.get("repo_url") or ""),
+                    branch=str(cat.get("branch") or "main"),
+                    is_installed=False,
+                )
+            )
 
         self._recompilers = found
         return found

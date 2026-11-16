@@ -74,3 +74,6 @@ desktop.ini
 !dist/
 !dist/**
 
+# Recompilers (heberges dans leurs propres depots GitHub, telecharges a la demande)
+tools/recompilers/
+

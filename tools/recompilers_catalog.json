@@ -1,0 +1,63 @@
+[
+  {
+    "id": "zelda-ocarina-of-time",
+    "name": "The Legend of Zelda: Ocarina of Time",
+    "recompiler_name": "TOoT:R (The Ocarina of Time: Recomp)",
+    "title_ids": [
+      "0400486024DEC000",
+      "0400486024DEC800"
+    ],
+    "supported_versions": [
+      131072
+    ],
+    "default_output_subdir": "TOoT-R",
+    "shortcut_name": "The Legend of Zelda - Ocarina of Time",
+    "windows_entrypoint": "install.ps1",
+    "linux_entrypoint": "install.sh",
+    "icon": "game_icon.ico",
+    "repo_url": "https://github.com/Archivist-Atlas/recompiler-zelda-ocarina-of-time.git",
+    "branch": "main",
+    "description": "Port PC natif par recompilation statique (AArch64 -> C++ x86-64, SDL3 / Vulkan / FFmpeg)."
+  },
+  {
+    "id": "super-mario-bros-wonder",
+    "name": "Super Mario Bros. Wonder",
+    "recompiler_name": "SMW PC Recomp (Belmante / SMW-Maker)",
+    "title_ids": [
+      "010015100B514000"
+    ],
+    "supported_versions": [
+      0,
+      327680
+    ],
+    "default_output_subdir": "Super Mario Bros. Wonder",
+    "shortcut_name": "Super Mario Bros. Wonder",
+    "windows_entrypoint": "install.ps1",
+    "linux_entrypoint": "install.sh",
+    "icon": "game_icon.ico",
+    "repo_url": "https://github.com/Archivist-Atlas/recompiler-mario-bros-wonder.git",
+    "branch": "main",
+    "description": "Recompile Super Mario Bros. Wonder (base 1.0.0 depuis votre .nup) en exécutable Windows PC natif (Vulkan) à partir des sources de SMW-Maker, sans aucune partie PS4."
+  },
+  {
+    "id": "mario-kart-world",
+    "name": "Mario Kart World",
+    "recompiler_name": "mkw-recomp (adriadam10)",
+    "title_ids": [
+      "0400C3F00006E000",
+      "0400C3F00006E800"
+    ],
+    "supported_versions": [
+      0,
+      524288
+    ],
+    "default_output_subdir": "Mario Kart World",
+    "shortcut_name": "Mario Kart World",
+    "windows_entrypoint": "install.ps1",
+    "linux_entrypoint": "install.sh",
+    "icon": "game_icon.ico",
+    "repo_url": "https://github.com/Archivist-Atlas/recompiler-mario-kart-world.git",
+    "branch": "main",
+    "description": "Recompile Mario Kart World (Nintendo Switch 2, 1.0.0 / 1.8.0 depuis votre .nup) en exécutable Windows PC natif (SDL3 / Vulkan, mode fenêtré par défaut, plein écran via F11)."
+  }
+]

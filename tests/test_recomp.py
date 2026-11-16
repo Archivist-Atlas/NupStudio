@@ -432,5 +432,91 @@ def test_diagnose_game_crash() -> None:
     assert "main.img" in msg2
 
 
+def test_recompiler_manager_loads_catalog_when_not_installed(tmp_path: Path) -> None:
+    import json
+
+    tools_dir = tmp_path / "tools"
+    tools_dir.mkdir(parents=True)
+    catalog = [
+        {
+            "id": "mario-kart-world",
+            "name": "Mario Kart World",
+            "recompiler_name": "mkw-recomp",
+            "title_ids": ["0400C3F00006E000"],
+            "supported_versions": [524288],
+            "default_output_subdir": "Mario Kart World",
+            "repo_url": "https://github.com/Archivist-Atlas/recompiler-mario-kart-world.git",
+        }
+    ]
+    (tools_dir / "recompilers_catalog.json").write_text(json.dumps(catalog), encoding="utf-8")
+
+    mgr = RecompilerManager(tmp_path)
+    assert len(mgr.recompilers) == 1
+    rec = mgr.recompilers[0]
+    assert rec.id == "mario-kart-world"
+    assert rec.is_installed is False
+    assert rec.repo_url.endswith("recompiler-mario-kart-world.git")
+
+
+def test_recompiler_downloader_extracts_and_resolves_lfs(tmp_path: Path, monkeypatch) -> None:
+    import io
+    import json
+    import zipfile
+    from src import recompiler_downloader as dl
+
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w") as zf:
+        zf.writestr("recompiler-demo-main/install.ps1", "Write-Host 'ok'\n")
+        zf.writestr(
+            "recompiler-demo-main/bin/tool.exe",
+            "version https://git-lfs.github.com/spec/v1\n"
+            f"oid sha256:{'a' * 64}\n"
+            "size 12\n",
+        )
+    zip_bytes = zip_buf.getvalue()
+
+    class _Resp:
+        def __init__(self, data: bytes) -> None:
+            self._bio = io.BytesIO(data)
+            self.headers = {"Content-Length": str(len(data))}
+
+        def read(self, n: int = -1) -> bytes:
+            return self._bio.read(n)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    def fake_urlopen(req, timeout=60):
+        url = req.full_url if hasattr(req, "full_url") else str(req)
+        if url.endswith("/archive/refs/heads/main.zip"):
+            return _Resp(zip_bytes)
+        if url.endswith("/info/lfs/objects/batch"):
+            body = json.dumps(
+                {
+                    "objects": [
+                        {
+                            "oid": "a" * 64,
+                            "size": 12,
+                            "actions": {"download": {"href": "https://cdn.example/tool.exe"}},
+                        }
+                    ]
+                }
+            ).encode("utf-8")
+            return _Resp(body)
+        if url == "https://cdn.example/tool.exe":
+            return _Resp(b"MZ_FAKE_BIN!")
+        raise AssertionError(f"Unexpected URL: {url}")
+
+    monkeypatch.setattr(dl.urllib.request, "urlopen", fake_urlopen)
+    dest = tmp_path / "tools" / "recompilers" / "demo"
+    dl.download_recompiler("https://github.com/org/recompiler-demo.git", dest)
+
+    assert (dest / "install.ps1").is_file()
+    assert (dest / "bin" / "tool.exe").read_bytes() == b"MZ_FAKE_BIN!"
+
+
 
 

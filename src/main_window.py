@@ -805,7 +805,12 @@ class MainWindow(QMainWindow):
         for row, rec in enumerate(recs):
             self.games_table.setItem(row, 0, QTableWidgetItem(rec.name))
             self.games_table.setItem(row, 1, QTableWidgetItem(rec.recompiler_name))
-            self.games_table.setItem(row, 2, QTableWidgetItem(rec.folder.name))
+            folder_label = (
+                rec.folder.name
+                if rec.is_installed
+                else f"{rec.folder.name} (téléchargement auto)"
+            )
+            self.games_table.setItem(row, 2, QTableWidgetItem(folder_label))
 
         self.games_table.resizeRowsToContents()
 
@@ -876,8 +881,9 @@ class MainWindow(QMainWindow):
 
         if match.version_supported:
             self._set_badge("Recompilation disponible", "#064e3b", "#6ee7b7")
+            dl_note = "" if rec.is_installed else " (sera téléchargé automatiquement au lancement)"
             self.lbl_status_detail.setText(
-                f"Jeu supporté par {rec.recompiler_name}. {rec.description}"
+                f"Jeu supporté par {rec.recompiler_name}{dl_note}. {rec.description}"
             )
             self.btn_compile.setEnabled(self.worker is None)
         else:
@@ -1081,6 +1087,7 @@ class MainWindow(QMainWindow):
         self.lbl_compile_elapsed.setVisible(False)
         self.btn_cancel.setVisible(False)
         self.btn_cancel.setEnabled(True)
+        self._refresh_supported_games_table()
         self.btn_compile.setEnabled(
             self.current_match is not None and self.current_match.recompiler is not None
         )
