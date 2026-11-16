@@ -62,7 +62,10 @@ class NupCliWorker(QThread):
         env["PYTHONUNBUFFERED"] = "1"
         env["PYTHONIOENCODING"] = "utf-8"
 
-        cmd = [sys.executable, "-u", "-m", "nup.cli", *self.args]
+        if getattr(sys, "frozen", False):
+            cmd = [sys.executable, "--nup-cli", *self.args]
+        else:
+            cmd = [sys.executable, "-u", "-m", "nup.cli", *self.args]
         self.log_line.emit(f"$ {' '.join(cmd)}")
 
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0

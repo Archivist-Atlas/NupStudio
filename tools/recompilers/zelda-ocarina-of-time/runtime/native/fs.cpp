@@ -209,7 +209,12 @@ fs::path HostPath(const Mount& m, const std::string& path) { return m.host / pat
 NATIVE("_ZN2nn2fs22QueryMountRomCacheSizeEPm") { *Ptr<u64>(c, 0) = 0x1000; Ret(c, 0); }
 NATIVE("_ZN2nn2fs8MountRomEPKcPvm") { Rom(); Ret(c, AddMount(Ptr<const char>(c, 0), Mount{true, {}})); }
 NATIVE("_ZN2nn2fs8MountRomEPKc") { Rom(); Ret(c, AddMount(Ptr<const char>(c, 0), Mount{true, {}})); }
-NATIVE("_ZN2nn2fs13MountSaveDataEPKcRKNS_7account3UidE") { Ret(c, HostMount(Ptr<const char>(c, 0), DataRoot() / "save")); }
+static fs::path SaveRoot() {
+    if (const char* p = std::getenv("OOT_SAVE_DIR"); p && *p) return fs::path(p);
+    return DataRoot() / "save";
+}
+
+NATIVE("_ZN2nn2fs13MountSaveDataEPKcRKNS_7account3UidE") { Ret(c, HostMount(Ptr<const char>(c, 0), SaveRoot())); }
 NATIVE("_ZN2nn2fs21MountTemporaryStorageEPKc") { Ret(c, HostMount(Ptr<const char>(c, 0), DataRoot() / "temporary")); }
 NATIVE("_ZN2nn2fs7UnmountEPKc") {
     std::lock_guard lock{fs_mutex};

@@ -89,10 +89,23 @@ $data = $Dir
 $launcherUiDst = Join-Path $data "game_launcher.py"
 $launcherUiSrc = $LauncherUiPath
 if (-not $launcherUiSrc -or -not (Test-Path -LiteralPath $launcherUiSrc)) {
-    $launcherUiSrc = Join-Path $source "..\..\..\src\game_launcher.py"
+    $toolsExe = Join-Path $source "..\..\game_launcher.exe"
+    $exeCand = Join-Path $source "..\..\..\game_launcher.exe"
+    if (Test-Path -LiteralPath $toolsExe) { $launcherUiSrc = $toolsExe }
+    elseif (Test-Path -LiteralPath $exeCand) { $launcherUiSrc = $exeCand }
+    else { $launcherUiSrc = Join-Path $source "..\..\..\src\game_launcher.py" }
 }
+$isLauncherExe = $launcherUiSrc -match "\.exe$"
+$launcherUiDst = Join-Path $data $(if ($isLauncherExe) { "game_launcher.exe" } else { "game_launcher.py" })
 if (Test-Path -LiteralPath $launcherUiSrc) {
     Copy-Item -LiteralPath $launcherUiSrc -Destination $launcherUiDst -Force
+}
+
+$globalSaveDir = Join-Path (Split-Path $data -Parent) "Saves\The Legend of Zelda - Ocarina of Time"
+New-Item -ItemType Directory -Force -Path $globalSaveDir | Out-Null
+$localSaveDir = Join-Path $data "save"
+if ((Test-Path -LiteralPath $localSaveDir) -and -not (Get-ChildItem -LiteralPath $globalSaveDir -Force | Select-Object -First 1)) {
+    Get-ChildItem -LiteralPath $localSaveDir -Force | Copy-Item -Destination $globalSaveDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 $templatePath = Join-Path $source "launch_options_template.json"
@@ -105,6 +118,7 @@ if (Test-Path -LiteralPath $templatePath) {
         "PATH" = "$clang64;$Msys\usr\bin"
         "MSYSTEM" = "CLANG64"
         "OOT_RECOMP_HOME" = $data
+        "OOT_SAVE_DIR" = $globalSaveDir
     } -Force
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($launchConfigPath, ($tpl | ConvertTo-Json -Depth 10), $utf8NoBom)
@@ -127,7 +141,13 @@ foreach ($cand in $pyCandidates) {
 }
 
 $runner = Join-Path $data "tootr.cmd"
-if ($hostPythonw -and (Test-Path -LiteralPath $launcherUiDst) -and (Test-Path -LiteralPath $launchConfigPath)) {
+if ($isLauncherExe -and (Test-Path -LiteralPath $launcherUiDst) -and (Test-Path -LiteralPath $launchConfigPath)) {
+@"
+@echo off
+cd /d "$data"
+"$launcherUiDst" --config "$launchConfigPath" %*
+"@ | Set-Content -Encoding ASCII $runner
+} elseif ($hostPythonw -and (Test-Path -LiteralPath $launcherUiDst) -and (Test-Path -LiteralPath $launchConfigPath)) {
 @"
 @echo off
 cd /d "$data"
@@ -192,5 +212,44 @@ foreach ($tmpDir in @(
         Remove-Item -Recurse -Force $tmpDir -ErrorAction SilentlyContinue
     }
 }
+
+# Register in Windows Installed Apps + create uninstaller (never deletes the .nup ROM)
+$uninstKeyName = "Switch2Recomp_" + ($safeShortcutName -replace '[^A-Za-z0-9_-]', '_')
+$uninstRegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$uninstKeyName"
+$uninstPs1 = Join-Path $data "uninstall.ps1"
+$desktopLnk = Join-Path ([Environment]::GetFolderPath("Desktop")) "$safeShortcutName.lnk"
+$startMenuLnk = Join-Path ([Environment]::GetFolderPath("Programs")) "$safeShortcutName.lnk"
+$uninstScript = @"
+Add-Type -AssemblyName System.Windows.Forms
+`$res = [System.Windows.Forms.MessageBox]::Show(
+    "Voulez-vous désinstaller $safeShortcutName ?`n`nLe dossier d'installation et les raccourcis seront supprimés.`nVotre fichier ROM (.nup) et vos sauvegardes ne seront PAS supprimés.",
+    "Désinstaller $safeShortcutName",
+    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+    [System.Windows.Forms.MessageBoxIcon]::Question
+)
+if (`$res -ne [System.Windows.Forms.DialogResult]::Yes) { exit 0 }
+foreach (`$lnk in @("$desktopLnk", "$startMenuLnk")) {
+    if (Test-Path -LiteralPath `$lnk) { Remove-Item -LiteralPath `$lnk -Force -ErrorAction SilentlyContinue }
+}
+if (Test-Path -LiteralPath "$uninstRegPath") {
+    Remove-Item -LiteralPath "$uninstRegPath" -Recurse -Force -ErrorAction SilentlyContinue
+}
+Set-Location `$env:TEMP
+Start-Process -FilePath "cmd.exe" -ArgumentList "/c timeout /t 1 /nobreak >nul & rmdir /s /q ``"$data``"" -WindowStyle Hidden
+"@
+[System.IO.File]::WriteAllText($uninstPs1, $uninstScript, (New-Object System.Text.UTF8Encoding($true)))
+
+$sizeKb = [int](((Get-ChildItem -LiteralPath $data -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum) / 1KB)
+New-Item -Path $uninstRegPath -Force | Out-Null
+Set-ItemProperty -Path $uninstRegPath -Name "DisplayName" -Value $safeShortcutName
+Set-ItemProperty -Path $uninstRegPath -Name "Publisher" -Value "Switch2Recomp (NUP Studio)"
+Set-ItemProperty -Path $uninstRegPath -Name "InstallLocation" -Value $data
+if (Test-Path -LiteralPath $iconDst) { Set-ItemProperty -Path $uninstRegPath -Name "DisplayIcon" -Value "$iconDst,0" }
+$uninstCmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$uninstPs1`""
+Set-ItemProperty -Path $uninstRegPath -Name "UninstallString" -Value $uninstCmd
+Set-ItemProperty -Path $uninstRegPath -Name "QuietUninstallString" -Value $uninstCmd
+Set-ItemProperty -Path $uninstRegPath -Name "NoModify" -Value 1 -Type DWord
+Set-ItemProperty -Path $uninstRegPath -Name "NoRepair" -Value 1 -Type DWord
+Set-ItemProperty -Path $uninstRegPath -Name "EstimatedSize" -Value $sizeKb -Type DWord
 
 Say "installed. Start the game from the Start menu or the desktop shortcut."

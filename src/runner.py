@@ -116,7 +116,16 @@ class RecompileWorker(QThread):
             icon_path = self.recompiler.resolve_icon_path()
             if icon_path is not None:
                 cmd.extend(["-IconPath", str(icon_path)])
-            launcher_ui = Path(__file__).resolve().parent / "game_launcher.py"
+            root_dir = self.recompiler.folder.parent.parent.parent
+            launcher_tools_exe = root_dir / "tools" / "game_launcher.exe"
+            launcher_exe = root_dir / "game_launcher.exe"
+            launcher_py = Path(__file__).resolve().parent / "game_launcher.py"
+            if launcher_tools_exe.is_file():
+                launcher_ui = launcher_tools_exe
+            elif launcher_exe.is_file():
+                launcher_ui = launcher_exe
+            else:
+                launcher_ui = launcher_py
             if launcher_ui.is_file():
                 cmd.extend(["-LauncherUiPath", str(launcher_ui)])
             if not self.create_desktop_shortcut:

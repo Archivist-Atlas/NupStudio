@@ -76,6 +76,9 @@ if(JEMALLOC_LIBRARY)
 endif()
 target_link_options(tootr PRIVATE -fuse-ld=lld)
 if(WIN32)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/game_icon.ico")
+        target_sources(tootr PRIVATE runtime/tootr.rc)
+    endif()
     # Guest threads run recompiled code whose frames live on the host stack: give host threads the
     # 8+ MiB a Linux thread gets (address space only).
     target_link_options(tootr PRIVATE -Wl,--stack,0x1000000)

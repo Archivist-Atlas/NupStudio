@@ -1,13 +1,12 @@
 # Super Mario Bros. Wonder PC Recompiler for Windows (driven by Switch2Recomp)
-# Uses SMW-Maker's bundled upstream SwitchGamesRecomp (src/wonder) + Windows toolchain,
-# building ONLY the native Windows PC target (no PS4 / OpenOrbis / .pkg).
+# Uses bundled PC-only SwitchGamesRecomp (src/wonder) + Windows toolchain,
+# building ONLY the native Windows PC target (no PS4 / OpenOrbis / .pkg, no external download).
 param(
     [string]$Nup = "",
     [string]$Dir = "",
     [string]$ShortcutName = "Super Mario Bros. Wonder",
     [string]$IconPath = "",
     [string]$LauncherUiPath = "",
-    [string]$ReleaseUrl = "https://github.com/iHaiDeeZ/SMW/releases/download/v00.30/SMW-Maker-v00.30.zip",
     [switch]$NoDesktopShortcut
 )
 $ErrorActionPreference = "Stop"
@@ -24,37 +23,28 @@ New-Item -ItemType Directory -Force -Path $Dir | Out-Null
 Say "installing into $Dir"
 
 $source = $PSScriptRoot
+$bundleRoot = Join-Path $source "bundle"
 $builderRoot = Join-Path $Dir "_builder"
-$makerDir = Join-Path $builderRoot "smw_maker"
+$wonderSrc = Join-Path $builderRoot "src\wonder"
 $readyMarker = Join-Path $builderRoot "ready.txt"
 $workDir = Join-Path $Dir "_work"
 $dataRoot = Join-Path $Dir "data"
 
-# ---- 1. Download & extract SMW-Maker (contains src/wonder + portable Python 3.14/capstone 5.0.9 + CMake + Ninja + spirv_harness) ----
-if (-not (Test-Path -LiteralPath $readyMarker)) {
-    New-Item -ItemType Directory -Force -Path $builderRoot | Out-Null
-    $cachedZip = Join-Path $env:TEMP "SMW-Maker-v00.30.zip"
-    $zipPath = Join-Path $builderRoot "SMW-Maker.zip"
-    if (Test-Path -LiteralPath $cachedZip) {
-        Say "using cached SMW-Maker archive: $cachedZip"
-        $zipPath = $cachedZip
-    } elseif (-not (Test-Path -LiteralPath $zipPath)) {
-        Say "downloading SMW-Maker bundle from GitHub..."
-        Invoke-WebRequest -Uri $ReleaseUrl -OutFile $zipPath
+# ---- 1. Stage bundled src/wonder into _builder (tools run directly from bundled tools/) ----
+if (-not (Test-Path -LiteralPath $readyMarker) -or -not (Test-Path -LiteralPath $wonderSrc)) {
+    $srcWonder = Join-Path $bundleRoot "src\wonder"
+    if (-not (Test-Path -LiteralPath $srcWonder)) {
+        Say "error: bundled src/wonder missing: $srcWonder"
+        exit 1
     }
-    Say "extracting SMW-Maker bundle (PC tools + src/wonder)..."
-    if (Test-Path -LiteralPath $makerDir) { Remove-Item -Recurse -Force $makerDir }
-    Expand-Archive -LiteralPath $zipPath -DestinationPath $makerDir -Force
-    if ($zipPath -ne $cachedZip) {
-        Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
-    }
+    Say "staging bundled src/wonder into _builder..."
+    New-Item -ItemType Directory -Force -Path (Join-Path $builderRoot "src") | Out-Null
+    if (Test-Path -LiteralPath $wonderSrc) { Remove-Item -Recurse -Force $wonderSrc }
+    Copy-Item -LiteralPath $srcWonder -Destination $wonderSrc -Recurse -Force
     "ok" | Set-Content -Encoding ASCII $readyMarker
 }
 
-$makerRoot = Join-Path $makerDir "SMW-Maker"
-if (-not (Test-Path -LiteralPath $makerRoot)) { $makerRoot = $makerDir }
-$wonderSrc = Join-Path $makerRoot "src\wonder"
-$toolsDir = Join-Path $makerRoot "tools"
+$toolsDir = Join-Path $bundleRoot "tools"
 $pyExe = Join-Path $toolsDir "python\python.exe"
 $cmakeExe = Join-Path $toolsDir "cmake\bin\cmake.exe"
 $ninjaExe = Join-Path $toolsDir "cmake\bin\ninja.exe"
@@ -337,6 +327,7 @@ Say "configuring CMake (Windows PC native, Clang64, NX_PS4=OFF)..."
     "-DCMAKE_MAKE_PROGRAM=$ninjaFwd" `
     "-DCMAKE_C_COMPILER=$ccFwd" `
     "-DCMAKE_CXX_COMPILER=$cxxFwd" `
+    "-DCMAKE_PREFIX_PATH=C:/msys64/clang64" `
     "-DCMAKE_CXX_FLAGS=-Wno-deprecated-declarations" `
     "-DCMAKE_EXE_LINKER_FLAGS=-Wl,--stack,67108864 -Wl,--disable-high-entropy-va -static" `
     "-DCMAKE_BUILD_TYPE=Release" `
@@ -359,6 +350,12 @@ if (-not (Test-Path -LiteralPath $builtExe)) {
     exit 1
 }
 Copy-Item -LiteralPath $builtExe -Destination (Join-Path $Dir "wonder.exe") -Force
+foreach ($dll in @("SDL3.dll", "libiconv-2.dll", "libwinpthread-1.dll")) {
+    $dllSrc = Join-Path $clang64Bin $dll
+    if (Test-Path -LiteralPath $dllSrc) {
+        Copy-Item -LiteralPath $dllSrc -Destination (Join-Path $Dir $dll) -Force
+    }
+}
 
 # ---- 8. Pre-launch UI + icons + shortcuts ----
 $iconSrc = $IconPath
@@ -378,11 +375,23 @@ if (Test-Path -LiteralPath $pngSrc) {
 $launcherUiSrc = $LauncherUiPath
 if (-not $launcherUiSrc -or -not (Test-Path -LiteralPath $launcherUiSrc)) {
     $repoRoot = Split-Path (Split-Path $source -Parent) -Parent
-    $launcherUiSrc = Join-Path $repoRoot "src\game_launcher.py"
+    $toolsExe = Join-Path $repoRoot "tools\game_launcher.exe"
+    $exeCand = Join-Path $repoRoot "game_launcher.exe"
+    if (Test-Path -LiteralPath $toolsExe) { $launcherUiSrc = $toolsExe }
+    elseif (Test-Path -LiteralPath $exeCand) { $launcherUiSrc = $exeCand }
+    else { $launcherUiSrc = Join-Path $repoRoot "src\game_launcher.py" }
 }
-$launcherUiDst = Join-Path $Dir "game_launcher.py"
+$isLauncherExe = $launcherUiSrc -match "\.exe$"
+$launcherUiDst = Join-Path $Dir $(if ($isLauncherExe) { "game_launcher.exe" } else { "game_launcher.py" })
 if (Test-Path -LiteralPath $launcherUiSrc) {
     Copy-Item -LiteralPath $launcherUiSrc -Destination $launcherUiDst -Force
+}
+
+$globalSaveDir = Join-Path (Split-Path $Dir -Parent) "Saves\Super Mario Bros. Wonder"
+New-Item -ItemType Directory -Force -Path $globalSaveDir | Out-Null
+$localSaveDir = Join-Path $dataRoot "user\save"
+if ((Test-Path -LiteralPath $localSaveDir) -and -not (Get-ChildItem -LiteralPath $globalSaveDir -Force | Select-Object -First 1)) {
+    Get-ChildItem -LiteralPath $localSaveDir -Force | Copy-Item -Destination $globalSaveDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 $launchTplPath = Join-Path $source "launch_options_template.json"
@@ -391,6 +400,9 @@ if (Test-Path -LiteralPath $launchTplPath) {
     $tpl = Get-Content -LiteralPath $launchTplPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $tpl | Add-Member -NotePropertyName "working_dir" -NotePropertyValue $Dir -Force
     $tpl | Add-Member -NotePropertyName "command" -NotePropertyValue @((Join-Path $Dir "wonder.exe")) -Force
+    if ($tpl.env) {
+        $tpl.env | Add-Member -NotePropertyName "NX_SAVE_DIR" -NotePropertyValue $globalSaveDir -Force
+    }
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($launchConfigPath, ($tpl | ConvertTo-Json -Depth 10), $utf8NoBom)
 }
@@ -412,7 +424,13 @@ foreach ($cand in $pyCandidates) {
 }
 
 $runner = Join-Path $Dir "wonder.cmd"
-if ($hostPythonw -and (Test-Path -LiteralPath $launcherUiDst) -and (Test-Path -LiteralPath $launchConfigPath)) {
+if ($isLauncherExe -and (Test-Path -LiteralPath $launcherUiDst) -and (Test-Path -LiteralPath $launchConfigPath)) {
+@"
+@echo off
+cd /d "$Dir"
+"$launcherUiDst" --config "$launchConfigPath" %*
+"@ | Set-Content -Encoding ASCII $runner
+} elseif ($hostPythonw -and (Test-Path -LiteralPath $launcherUiDst) -and (Test-Path -LiteralPath $launchConfigPath)) {
 @"
 @echo off
 cd /d "$Dir"
@@ -459,6 +477,44 @@ foreach ($tmpDir in @($builderRoot, $workDir, (Join-Path $Dir "_extracted"))) {
         Remove-Item -Recurse -Force $tmpDir -ErrorAction SilentlyContinue
     }
 }
+
+# ---- 10. Register in Windows Installed Apps + create uninstaller (never deletes the .nup ROM) ----
+$uninstKeyName = "Switch2Recomp_" + ($safeShortcutName -replace '[^A-Za-z0-9_-]', '_')
+$uninstRegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$uninstKeyName"
+$uninstPs1 = Join-Path $Dir "uninstall.ps1"
+$desktopLnk = Join-Path ([Environment]::GetFolderPath("Desktop")) "$safeShortcutName.lnk"
+$startMenuDir = Join-Path ([Environment]::GetFolderPath("Programs")) $safeShortcutName
+$uninstScript = @"
+Add-Type -AssemblyName System.Windows.Forms
+`$res = [System.Windows.Forms.MessageBox]::Show(
+    "Voulez-vous désinstaller $safeShortcutName ?`n`nLe dossier d'installation et les raccourcis seront supprimés.`nVotre fichier ROM (.nup) et vos sauvegardes ne seront PAS supprimés.",
+    "Désinstaller $safeShortcutName",
+    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+    [System.Windows.Forms.MessageBoxIcon]::Question
+)
+if (`$res -ne [System.Windows.Forms.DialogResult]::Yes) { exit 0 }
+if (Test-Path -LiteralPath "$desktopLnk") { Remove-Item -LiteralPath "$desktopLnk" -Force -ErrorAction SilentlyContinue }
+if (Test-Path -LiteralPath "$startMenuDir") { Remove-Item -LiteralPath "$startMenuDir" -Recurse -Force -ErrorAction SilentlyContinue }
+if (Test-Path -LiteralPath "$uninstRegPath") {
+    Remove-Item -LiteralPath "$uninstRegPath" -Recurse -Force -ErrorAction SilentlyContinue
+}
+Set-Location `$env:TEMP
+Start-Process -FilePath "cmd.exe" -ArgumentList "/c timeout /t 1 /nobreak >nul & rmdir /s /q ``"$Dir``"" -WindowStyle Hidden
+"@
+[System.IO.File]::WriteAllText($uninstPs1, $uninstScript, (New-Object System.Text.UTF8Encoding($true)))
+
+$sizeKb = [int](((Get-ChildItem -LiteralPath $Dir -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum) / 1KB)
+New-Item -Path $uninstRegPath -Force | Out-Null
+Set-ItemProperty -Path $uninstRegPath -Name "DisplayName" -Value $safeShortcutName
+Set-ItemProperty -Path $uninstRegPath -Name "Publisher" -Value "Switch2Recomp (NUP Studio)"
+Set-ItemProperty -Path $uninstRegPath -Name "InstallLocation" -Value $Dir
+if (Test-Path -LiteralPath $iconDst) { Set-ItemProperty -Path $uninstRegPath -Name "DisplayIcon" -Value "$iconDst,0" }
+$uninstCmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$uninstPs1`""
+Set-ItemProperty -Path $uninstRegPath -Name "UninstallString" -Value $uninstCmd
+Set-ItemProperty -Path $uninstRegPath -Name "QuietUninstallString" -Value $uninstCmd
+Set-ItemProperty -Path $uninstRegPath -Name "NoModify" -Value 1 -Type DWord
+Set-ItemProperty -Path $uninstRegPath -Name "NoRepair" -Value 1 -Type DWord
+Set-ItemProperty -Path $uninstRegPath -Name "EstimatedSize" -Value $sizeKb -Type DWord
 
 Say "installed. Start the game from the Start menu or the desktop shortcut."
 

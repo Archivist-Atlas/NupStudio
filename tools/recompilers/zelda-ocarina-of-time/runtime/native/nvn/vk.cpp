@@ -336,8 +336,14 @@ VulkanContext& Vk() {
                 HICON big = (HICON)LoadImageW(nullptr, path, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
                 HICON small = (HICON)LoadImageW(nullptr, path, IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_LOADFROMFILE);
                 if (big || small) {
-                    if (big) SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)big);
-                    if (small) SendMessageW(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)small);
+                    if (big) {
+                        SetClassLongPtrW(hwnd, GCLP_HICON, (LONG_PTR)big);
+                        SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)big);
+                    }
+                    if (small) {
+                        SetClassLongPtrW(hwnd, GCLP_HICONSM, (LONG_PTR)small);
+                        SendMessageW(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)small);
+                    }
                     break;
                 }
             }

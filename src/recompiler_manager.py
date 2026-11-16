@@ -49,7 +49,7 @@ class RecompilerManager:
     def __init__(self, root_dir: Path) -> None:
         self.root_dir = root_dir
         self.recompilers_dir = root_dir / "tools" / "recompilers"
-        self.games_db_path = root_dir / "games_db.json"
+        self.games_db_path = root_dir / "tools" / "games_db.json"
         self.recompilers_dir.mkdir(parents=True, exist_ok=True)
         self._games_db: dict[str, str] = self._load_games_db()
         self._recompilers: list[GameRecompiler] = []

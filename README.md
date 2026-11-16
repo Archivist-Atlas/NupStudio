@@ -2,73 +2,85 @@
 
 Interface graphique Windows permettant d'explorer, extraire, packager des ROMs Switch 2 (`.nup`) et de les recompiler en exécutables PC natifs (Vulkan) lorsqu'un recompileur compatible est présent dans `tools/recompilers/`.
 
+## Version compilé
 <p align="center">
   <img src="assets/capture.jpg" alt="Aperçu de NUP Studio" width="900">
+<i>plus besoin d'avoir Python d'installé sur votre système</i>
 </p>
 
+## Désinstallation possible depuis Windows
+<p align="center">
+  <img src="assets/capture_1.jpg" alt="Désinstallation directe depuis les Applications installées de Windows" width="900">
+</p>
+
+-----------
+## Super Mario Bros. Wonder
 <p align="center">
   <img src="assets/capture_2.jpg" alt="Super Mario Bros. Wonder recompilé sur PC Windows" width="900">
 </p>
 
+## The Legend of Zelda: Ocarina of Time
 <p align="center">
-  <img src="assets/capture_3.jpg" alt="SThe Legend of Zelda: Ocarina of Time recompilé sur PC Windows" width="900">
+  <img src="assets/capture_3.jpg" alt="The Legend of Zelda: Ocarina of Time recompilé sur PC Windows" width="900">
 </p>
 
-## Fonctionnalités
+## Mario Kart World
+<p align="center">
+  <img src="assets/capture_4.jpg" alt="Mario Kart World recompilé sur PC Windows" width="900">
+</p>
 
-- **Recompilateur** : glisser-déposer d'un fichier `.nup`, détection automatique du jeu et du recompileur associé, barre de progression, console temps réel et création de raccourci avec icône sur le Bureau.
-- **Jeux supportés** : liste des recompileurs disponibles dans `tools/recompilers/` avec leurs Title IDs et versions compatibles.
-- **Extraire (`.nup`)** : extraction du contenu d'une archive `.nup` (ExeFS / RomFS).
-- **Packager (`.nup`)** : création et reconditionnement de fichiers `.nup` pour le modding.
-- **NUP Explorer** : exploration des fichiers et prévisualisation des médias contenus dans une archive `.nup`.
-- **Fenêtre de pré-lancement** : configuration graphique/audio avant démarrage du jeu recompilé (`src/game_launcher.py`).
 
 ## Jeux supportés
 
 | Jeu | Recompileur | Title ID(s) | Backend |
 | :--- | :--- | :--- | :--- |
 | **The Legend of Zelda: Ocarina of Time** | TOoT:R (The Ocarina of Time: Recomp) | `0400486024DEC000`, `0400486024DEC800` | SDL3 / Vulkan / FFmpeg |
-| **Super Mario Bros. Wonder** | SMW PC Recomp (Belmante / SMW-Maker) | `010015100B514000` | Windows PC natif / Vulkan |
+| **Super Mario Bros. Wonder** | SMW PC Recomp (Belmante / SMW-Maker) | `010015100B514000` | SDL3 / Vulkan |
+| **Mario Kart World** | mkw-recomp (adriadam10) | `0400C3F00006E000`, `0400C3F00006E800` | SDL3 / Vulkan |
+
+
+## Fonctionnalités
+
+- **Version compilée autonome (`dist/NUP Studio.exe`)** : utilisable directement sans installer Python ni ses dépendances (`tools/game_launcher.exe` inclus pour le lanceur de jeu).
+- **Recompilateur** : glisser-déposer d'un fichier `.nup`, détection automatique du jeu et du recompileur associé, barre de progression, console temps réel et création de raccourcis (Menu Démarrer et Bureau).
+- **Désinstallation intégrée à Windows** : chaque jeu recompilé apparaît dans *Paramètres → Applications installées* de Windows et peut être désinstallé en un clic (supprime le dossier du jeu et ses raccourcis tout en conservant le fichier ROM `.nup` et les sauvegardes).
+- **Support des manettes sur tous les jeux** : prise en charge des manettes (Xbox, PlayStation, Switch, génériques via SDL3) sur l'ensemble des jeux recompilés.
+- **Gestion centralisée des sauvegardes** : les sauvegardes sont stockées dans un dossier global `Saves/<NomDuJeu>` dans le répertoire parent d'installation (par exemple `Switch2Recomp\Saves\<Jeu>`), ce qui permet de les conserver même après désinstallation ou suppression du dossier du jeu.
+- **Jeux supportés** : liste des recompileurs disponibles dans `tools/recompilers/` avec leurs Title IDs et versions compatibles.
+- **Extraire (`.nup`)** : extraction du contenu d'une archive `.nup` (ExeFS / RomFS).
+- **Packager (`.nup`)** : création et reconditionnement de fichiers `.nup` pour le modding.
+- **NUP Explorer** : exploration des fichiers et prévisualisation des médias contenus dans une archive `.nup`.
+- **Fenêtre de pré-lancement** : configuration graphique/audio avant démarrage du jeu recompilé (`tools/game_launcher.exe` / `src/game_launcher.py`).
+
+
 
 ## Prérequis
 
 - **Windows 10 / 11** (64 bits)
-- **Python 3.10+** disponible dans le `PATH`
-- **MSYS2 (Clang64)** pour la compilation C++ native (`clang`, `clang++`, `cmake`, `ninja`)
-
-Dépendances Python (`requirements.txt`) :
-- `PySide6 >= 6.6`
-- `zstandard >= 0.22`
-- `Pillow >= 10.0`
+- **Version compilée (`dist/NUP Studio.exe`)** : aucun Python requis pour utiliser l'interface et lancer les jeux (les recompileurs C++ utilisent leur propre toolchain ou MSYS2 Clang64 lors de la compilation initiale d'un jeu).
+- **Mode sources Python (optionnel)** : Python 3.10+ avec `requirements.txt` (`PySide6 >= 6.6`, `zstandard >= 0.22`, `Pillow >= 10.0`).
 
 ## Installation et lancement
 
-Lancez simplement `start.bat` (les dépendances Python manquantes sont installées automatiquement au premier démarrage) :
+Lancez simplement `start.bat` (exécute directement la version compilée `dist/NUP Studio.exe`) :
 
 ```bat
 start.bat
 ```
 
-Ou manuellement :
+Pour reconstruire la version compilée :
+
+```powershell
+.\build_dist.ps1
+```
+
+Ou manuellement depuis les sources Python :
 
 ```bash
 pip install -r requirements.txt
 python main.py
 ```
 
-## Structure du projet
-
-```text
-.
-├── assets/                  # Icônes et capture d'écran de l'application
-├── src/                     # Code source de l'interface NUP Studio et du lanceur de jeu
-├── tests/                   # Tests unitaires (pytest)
-├── tools/recompilers/       # Recompileurs par jeu (manifeste, script install.ps1, icônes)
-├── games_db.json            # Base de correspondance des Title IDs
-├── main.py                  # Point d'entrée de l'application
-├── requirements.txt         # Dépendances Python
-└── start.bat                # Script de lancement Windows avec auto-installation
-```
 
 ## Avertissement
 
