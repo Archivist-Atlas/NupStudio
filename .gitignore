@@ -70,3 +70,7 @@ launch_settings.json
 Thumbs.db
 desktop.ini
 
+# Distribution compilee (tout inclure dans dist/)
+!dist/
+!dist/**
+
