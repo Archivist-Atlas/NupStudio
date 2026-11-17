@@ -518,5 +518,27 @@ def test_recompiler_downloader_extracts_and_resolves_lfs(tmp_path: Path, monkeyp
     assert (dest / "bin" / "tool.exe").read_bytes() == b"MZ_FAKE_BIN!"
 
 
+def test_msys2_helper_detects_missing_and_ready(tmp_path: Path) -> None:
+    from src.msys2_helper import find_msys2_installer, is_msys2_ready
+
+    assert is_msys2_ready(tmp_path / "msys64") is False
+    for rel in (
+        "usr/bin/bash.exe",
+        "clang64/bin/clang.exe",
+        "clang64/bin/clang++.exe",
+        "clang64/bin/lld.exe",
+        "clang64/bin/cmake.exe",
+        "clang64/bin/ninja.exe",
+        "clang64/bin/python.exe",
+        "clang64/include/SDL3/SDL.h",
+    ):
+        p = tmp_path / "msys64" / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(b"ok")
+
+    assert is_msys2_ready(tmp_path / "msys64") is True
+    assert find_msys2_installer(ROOT).is_file()
+
+
 
 

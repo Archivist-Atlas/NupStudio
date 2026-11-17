@@ -13,6 +13,7 @@ from typing import Optional
 
 from PySide6.QtCore import QThread, Signal
 
+from .msys2_helper import find_msys2_installer, is_msys2_ready
 from .recompiler_downloader import DownloadCancelledError, download_recompiler
 from .recompiler_manager import GameRecompiler
 
@@ -164,42 +165,9 @@ class RecompileWorker(QThread):
             if choices is not None and to_emit is not None:
                 self.prompt_received.emit(to_emit, choices)
 
-    def run(self) -> None:
-        entry_name = (
-            self.recompiler.windows_entrypoint
-            if os.name == "nt"
-            else self.recompiler.linux_entrypoint
-        )
-        entry_script = self.recompiler.folder / entry_name
-        if not entry_script.is_file() and self.recompiler.repo_url:
-            self.log_line.emit(
-                f"[Recompileur] Absent localement — téléchargement depuis {self.recompiler.repo_url}..."
-            )
-            try:
-                download_recompiler(
-                    self.recompiler.repo_url,
-                    self.recompiler.folder,
-                    branch=self.recompiler.branch,
-                    log_cb=self.log_line.emit,
-                    cancel_check=lambda: self._cancelled,
-                )
-            except DownloadCancelledError as exc:
-                self.finished_status.emit(False, str(exc))
-                return
-            except Exception as exc:
-                self.finished_status.emit(
-                    False, f"Échec du téléchargement du recompileur : {exc}"
-                )
-                return
-
-        try:
-            cmd = self._build_command()
-        except Exception as exc:
-            self.finished_status.emit(False, str(exc))
-            return
-
+    def _run_streaming_process(self, cmd: list[str], cwd: Path) -> int:
         self.log_line.emit(f"$ {' '.join(cmd)}")
-        self.log_line.emit(f"Dossier de travail : {self.recompiler.folder}")
+        self.log_line.emit(f"Dossier de travail : {cwd}")
         self.log_line.emit("-" * 60)
 
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
@@ -210,7 +178,7 @@ class RecompileWorker(QThread):
         try:
             self._process = subprocess.Popen(
                 cmd,
-                cwd=str(self.recompiler.folder),
+                cwd=str(cwd),
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -250,9 +218,83 @@ class RecompileWorker(QThread):
             if remaining:
                 self.log_line.emit(remaining)
 
-            code = self._process.wait()
-        except Exception as exc:
+            return self._process.wait()
+        except Exception:
             stop_event.set()
+            raise
+
+    def run(self) -> None:
+        if os.name == "nt" and not is_msys2_ready():
+            root_dir = self.recompiler.folder.parent.parent.parent
+            msys_installer = find_msys2_installer(root_dir)
+            if not msys_installer.is_file():
+                self.finished_status.emit(
+                    False, f"Installeur MSYS2 introuvable : {msys_installer}"
+                )
+                return
+            self.log_line.emit("[MSYS2] Vérification / installation de MSYS2 (C:\\msys64)...")
+            try:
+                msys_code = self._run_streaming_process(
+                    [
+                        "powershell",
+                        "-NoProfile",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-File",
+                        str(msys_installer),
+                        "-Yes",
+                    ],
+                    msys_installer.parent,
+                )
+            except Exception as exc:
+                self.finished_status.emit(False, f"Erreur d'installation MSYS2 : {exc}")
+                return
+            if self._cancelled:
+                self.finished_status.emit(False, "Recompilation annulée par l'utilisateur.")
+                return
+            if msys_code != 0:
+                self.finished_status.emit(
+                    False,
+                    f"L'installation de MSYS2 a été annulée ou a échoué (code {msys_code}).",
+                )
+                return
+
+        entry_name = (
+            self.recompiler.windows_entrypoint
+            if os.name == "nt"
+            else self.recompiler.linux_entrypoint
+        )
+        entry_script = self.recompiler.folder / entry_name
+        if not entry_script.is_file() and self.recompiler.repo_url:
+            self.log_line.emit(
+                f"[Recompileur] Absent localement — téléchargement depuis {self.recompiler.repo_url}..."
+            )
+            try:
+                download_recompiler(
+                    self.recompiler.repo_url,
+                    self.recompiler.folder,
+                    branch=self.recompiler.branch,
+                    log_cb=self.log_line.emit,
+                    cancel_check=lambda: self._cancelled,
+                )
+            except DownloadCancelledError as exc:
+                self.finished_status.emit(False, str(exc))
+                return
+            except Exception as exc:
+                self.finished_status.emit(
+                    False, f"Échec du téléchargement du recompileur : {exc}"
+                )
+                return
+
+        try:
+            cmd = self._build_command()
+        except Exception as exc:
+            self.finished_status.emit(False, str(exc))
+            return
+
+        try:
+            code = self._run_streaming_process(cmd, self.recompiler.folder)
+        except Exception as exc:
             self.finished_status.emit(False, f"Erreur d'exécution : {exc}")
             return
 

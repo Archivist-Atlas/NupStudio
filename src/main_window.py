@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .msys2_helper import is_msys2_ready
 from .nup_parser import NupParseError, parse_nup
 from .nup_explorer_tab import NupExplorerTab
 from .nup_tools import NupCliWorker
@@ -932,6 +933,23 @@ class MainWindow(QMainWindow):
         if out_dir.name.lower() != game_sub.lower():
             out_dir = out_dir / game_sub
             self.out_input.setText(str(out_dir))
+
+        if not is_msys2_ready():
+            reply = QMessageBox.question(
+                self,
+                "Installation requise : MSYS2",
+                "La recompilation nécessite l'environnement MSYS2 (Clang64), "
+                "qui va être installé sur votre lecteur C (C:\\msys64).\n\n"
+                "Souhaitez-vous installer MSYS2 et les outils de compilation maintenant ?\n"
+                "(Si vous refusez, la recompilation sera arrêtée.)",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                self._append_log(
+                    "[Annulé] Installation de MSYS2 refusée par l'utilisateur — recompilation arrêtée."
+                )
+                return
 
         self._append_log("")
         self._append_log(f"=== Démarrage de la recompilation : {rec.name} ===")
