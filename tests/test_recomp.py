@@ -531,6 +531,8 @@ def test_msys2_helper_detects_missing_and_ready(tmp_path: Path) -> None:
         "clang64/bin/ninja.exe",
         "clang64/bin/python.exe",
         "clang64/include/SDL3/SDL.h",
+        "clang64/include/vpx/vpx_decoder.h",
+        "clang64/include/vma/vk_mem_alloc.h",
     ):
         p = tmp_path / "msys64" / rel
         p.parent.mkdir(parents=True, exist_ok=True)

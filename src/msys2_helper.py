@@ -21,6 +21,8 @@ def is_msys2_ready(msys_dir: Path = DEFAULT_MSYS2_DIR) -> bool:
         msys_dir / "clang64" / "bin" / "ninja.exe",
         msys_dir / "clang64" / "bin" / "python.exe",
         msys_dir / "clang64" / "include" / "SDL3" / "SDL.h",
+        msys_dir / "clang64" / "include" / "vpx" / "vpx_decoder.h",
+        msys_dir / "clang64" / "include" / "vma" / "vk_mem_alloc.h",
     ]
     return all(p.is_file() for p in required)
 
