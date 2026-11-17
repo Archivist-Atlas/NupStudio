@@ -7,6 +7,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 function Say($msg) { Write-Host "[MSYS2] $msg" -ForegroundColor Cyan }
 
 if (-not [Environment]::Is64BitOperatingSystem) {
