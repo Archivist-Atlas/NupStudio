@@ -44,6 +44,11 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
   <img src="assets/screen_6.jpg" alt="Mario Tennis Fever recompilé sur PC Windows" width="900">
 </p>
 
+## Pokémon Pokopia
+<p align="center">
+  <img src="assets/screen_7.jpg" alt="Pokémon Pokopia recompilé sur PC Windows" width="900">
+</p>
+
 
 ## Jeux supportés
 
@@ -113,6 +118,7 @@ Les personnes listées ci-dessous sont les **contributeurs des recompileurs init
 - **Donkey Kong Bananza** (`DKB Recomp / dkb-pc-recomp`) : applezra, arthurhfcardoso, Custerok8814, devadobe11-pixel, dwk001, Esa, Felitendo, Kvinkxerli, lcd1232, Liam Valty, Lucas Daniel Duarte Cabral, Lucas-blip-png, Luis Hansen, lunar-me, MamamaNanana-dot, Marjaperse, Martin Grahn, MatyMeatBoy, monsterlag, mrtink125792, NotShiny, Osama Shoubber, Osohow, Pasha Kagan, philneitz, PorlocK-BR, Seth, shadowlink1174, shenjack, thatbananaman08, tuwary, Valiantsin Dzerakh, Vicente Mediano, Wellington Dias, wrothgaril, zswxp59
 - **Pokémon Legends: Z-A** (`PokeZ-ARecomp / LASRecomp`) : aqali1, Atterax, AzleKayn, DieMitchell, dvilela, Felipe Dias, gabrielsem16-bot, German Torres, gitarre1234rr5, Hexveil404, huangjianqin, Krijn kok, ky1vstar, lucabravi, Maganra, Man Sarip, NevesHenry, Oscar Andrén, Peiikai, Primož Ocepek, Tensorlong, Tristan, we11adam, wimw85
 - **Mario Tennis Fever** (`MTF Recomp`) : Kayo Chiaradia et les contributeurs des projets de base utilisés (Valiantsin Dzerakh / TotK Recomp, Peiikai / LASRecomp, MacNativeGames, jhaizhou / d2r-mobile, seedds / nxnative, a55uka / nup, Revivedx / SavageWindRecomp, NotRexed / Hookshot)
+- **Pokémon Pokopia** (`Recompia / pokopia-recomp`) : Angel Toloza, AngelXex, Carson Kompon, Chaos192, deviann877, drako (`drakolordx7`), Exonot, featureJosh (`Josh` / `Josh Q.`), Fernando Brito, Jeff Harrison, jerban, Jones, Julio Andrade, kevobato, Krijn kok, mishap, Piktrip, tinfoil-chewer, xFractals (`pokopia-native`)
 
 ### Contributeurs des outils NUP (Packager & Extractor)
 

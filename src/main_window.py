@@ -1648,6 +1648,11 @@ class MainWindow(QMainWindow):
             (Valiantsin Dzerakh / TotK Recomp, Peiikai / LASRecomp, MacNativeGames, jhaizhou / d2r-mobile,
             seedds / nxnative, a55uka / nup, Revivedx / SavageWindRecomp, NotRexed / Hookshot)</p>
 
+            <h3>Pokémon Pokopia (Recompia / pokopia-recomp)</h3>
+            <p>Angel Toloza, AngelXex, Carson Kompon, Chaos192, deviann877, drako (drakolordx7), Exonot,
+            featureJosh (Josh / Josh Q.), Fernando Brito, Jeff Harrison, jerban, Jones, Julio Andrade,
+            kevobato, Krijn kok, mishap, Piktrip, tinfoil-chewer, xFractals (pokopia-native)</p>
+
             <h2>Outils NUP (Packager &amp; Extractor — indépendants des recompileurs)</h2>
             <h3>nup (<a href="https://github.com/a55uka/nup" style="color:#93c5fd;">github.com/a55uka/nup</a>)</h3>
             <p>a55uka, CoolCat467, Kabosune</p>
