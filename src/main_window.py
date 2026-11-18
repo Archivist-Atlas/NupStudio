@@ -565,7 +565,7 @@ class MainWindow(QMainWindow):
         stdin_row.addWidget(self.btn_send_input)
         tab_layout.addWidget(self.stdin_container)
 
-        self.tabs.addTab(tab_recomp, "Recompilateur")
+        self.tabs.addTab(tab_recomp, "Convertir en jeu PC")
 
         # Tab 2: Supported Games (recompilers/ subfolders)
         tab_games = QWidget()
