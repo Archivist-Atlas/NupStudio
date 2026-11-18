@@ -10,7 +10,7 @@ import time
 from typing import Optional
 
 from PySide6.QtCore import QProcess, Qt, QTimer, QUrl
-from PySide6.QtGui import QDesktopServices, QDragEnterEvent, QDropEvent, QFont, QIcon, QPixmap
+from PySide6.QtGui import QColor, QDesktopServices, QDragEnterEvent, QDropEvent, QFont, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -613,7 +613,7 @@ class MainWindow(QMainWindow):
         backup_row.addWidget(self.btn_backup_recompilers)
         games_layout.addWidget(backup_card)
 
-        self.games_table = QTableWidget(0, 3)
+        self.games_table = QTableWidget(0, 4)
         self.games_table.setAlternatingRowColors(True)
         self.games_table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.games_table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -621,16 +621,17 @@ class MainWindow(QMainWindow):
         self.games_table.verticalHeader().setVisible(False)
         self.games_table.verticalHeader().setMinimumSectionSize(44)
         self.games_table.setHorizontalHeaderLabels(
-            ["Jeu", "Recompileur", "Sous-dossier"]
+            ["Jeu", "Recompileur", "Sous-dossier", "Statut"]
         )
         header = self.games_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         self.games_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         games_layout.addWidget(self.games_table)
 
-        self.tabs.addTab(tab_games, "Jeux supportés")
+        self.tabs.addTab(tab_games, "Recompileurs")
         self._build_extract_tab()
         self._build_pack_tab()
 
@@ -844,16 +845,32 @@ class MainWindow(QMainWindow):
         self.badge_count.setText(
             f"{len(recs)} jeu{'x' if len(recs) > 1 else ''} supporté{'s' if len(recs) > 1 else ''}"
         )
+        info = self._latest_update_info
+        outdated_ids = set(info.outdated_recompiler_ids) if info else set()
+        checked_ids = set(info.checked_recompiler_ids) if info else set()
+
         self.games_table.setRowCount(len(recs))
         for row, rec in enumerate(recs):
             self.games_table.setItem(row, 0, QTableWidgetItem(rec.name))
             self.games_table.setItem(row, 1, QTableWidgetItem(rec.recompiler_name))
-            folder_label = (
-                rec.folder.name
-                if rec.is_installed
-                else f"{rec.folder.name} (téléchargement auto)"
-            )
-            self.games_table.setItem(row, 2, QTableWidgetItem(folder_label))
+            self.games_table.setItem(row, 2, QTableWidgetItem(rec.folder.name))
+
+            if not rec.is_installed:
+                status_text = "Non téléchargé"
+                status_color = "#94a3b8"
+            elif rec.id in outdated_ids:
+                status_text = "Mise à jour dispo"
+                status_color = "#fbbf24"
+            elif rec.id in checked_ids:
+                status_text = "Installé (à jour)"
+                status_color = "#4ade80"
+            else:
+                status_text = "Installé"
+                status_color = "#4ade80"
+
+            status_item = QTableWidgetItem(status_text)
+            status_item.setForeground(QColor(status_color))
+            self.games_table.setItem(row, 3, status_item)
 
         self.games_table.resizeRowsToContents()
 
@@ -1370,7 +1387,7 @@ class MainWindow(QMainWindow):
     def _check_app_update_silent(self) -> None:
         if self._update_check_worker is not None:
             return
-        w = AppUpdateCheckWorker(self.root_dir, self)
+        w = AppUpdateCheckWorker(self.root_dir, self.manager.recompilers, self)
         w.finished_check.connect(self._on_app_update_checked_silent)
         self._update_check_worker = w
         w.start()
@@ -1382,22 +1399,43 @@ class MainWindow(QMainWindow):
         if not ok or info is None:
             return
         self._latest_update_info = info
-        if info.update_available:
-            self.btn_app_update.setText(f"Mise à jour v{info.remote_version} disponible")
-            self.btn_app_update.setStyleSheet(
-                "background-color: #065f46; border: 1px solid #10b981; color: #ecfdf5; font-weight: 700;"
+        self._refresh_supported_games_table()
+        n_recomp = len(info.outdated_recompiler_ids)
+        if info.update_available and n_recomp:
+            self.btn_app_update.setText(
+                f"MàJ v{info.remote_version} + {n_recomp} recompileur(s)"
             )
+        elif info.update_available:
+            self.btn_app_update.setText(f"Mise à jour v{info.remote_version} disponible")
+        elif n_recomp:
+            self.btn_app_update.setText(f"MàJ {n_recomp} recompileur(s)")
+        else:
+            local_ver, _, _ = get_local_version_info(self.root_dir)
+            self.btn_app_update.setText(f"v{local_ver} • À jour")
+            self.btn_app_update.setStyleSheet("")
+            return
+        self.btn_app_update.setStyleSheet(
+            "background-color: #065f46; border: 1px solid #10b981; color: #ecfdf5; font-weight: 700;"
+        )
 
     def _on_click_app_update(self) -> None:
-        if self._update_apply_worker is not None or self._update_check_worker is not None:
+        if (
+            self._update_apply_worker is not None
+            or self._update_check_worker is not None
+            or self._backup_worker is not None
+        ):
             return
-        if self._latest_update_info and self._latest_update_info.update_available:
+        if self._latest_update_info and (
+            self._latest_update_info.update_available
+            or self._latest_update_info.outdated_recompiler_ids
+        ):
             self._prompt_and_apply_update(self._latest_update_info)
             return
 
         self.btn_app_update.setEnabled(False)
         self.btn_app_update.setText("Vérification…")
-        w = AppUpdateCheckWorker(self.root_dir, self)
+        self.manager.refresh()
+        w = AppUpdateCheckWorker(self.root_dir, self.manager.recompilers, self)
         w.finished_check.connect(self._on_app_update_checked_manual)
         self._update_check_worker = w
         w.start()
@@ -1416,30 +1454,95 @@ class MainWindow(QMainWindow):
                 f"Impossible de vérifier les mises à jour :\n{err}",
             )
             return
-        self._latest_update_info = info
-        if info.update_available:
-            self._on_app_update_checked_silent(True, info, "")
+        self._on_app_update_checked_silent(True, info, "")
+        if info.update_available or info.outdated_recompiler_ids:
             self._prompt_and_apply_update(info)
         else:
             QMessageBox.information(
                 self,
-                "Application à jour",
-                f"NUP Studio est déjà à jour (version {info.local_version}).",
+                "Tout est à jour",
+                f"NUP Studio (v{info.local_version}) et tous les recompileurs installés sont à jour.",
             )
 
     def _prompt_and_apply_update(self, info: AppUpdateInfo) -> None:
+        outdated_recs = [
+            r for r in self.manager.recompilers if r.id in set(info.outdated_recompiler_ids)
+        ]
+        lines: list[str] = []
+        if info.update_available:
+            lines.append(f"• NUP Studio : {info.local_version} → {info.remote_version}")
+        for rec in outdated_recs:
+            lines.append(f"• Recompileur : {rec.name} ({rec.id})")
+
         ans = QMessageBox.question(
             self,
-            "Mise à jour disponible",
-            f"Une nouvelle version de NUP Studio est disponible :\n\n"
-            f"• Version actuelle : {info.local_version}\n"
-            f"• Nouvelle version : {info.remote_version}\n\n"
-            f"Télécharger et installer la mise à jour maintenant ?",
+            "Mises à jour disponibles",
+            "Les éléments suivants peuvent être mis à jour :\n\n"
+            + "\n".join(lines)
+            + "\n\nTélécharger et installer ces mises à jour maintenant ?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if ans != QMessageBox.StandardButton.Yes:
             return
 
+        if outdated_recs:
+            self._run_recompiler_updates(outdated_recs, then_app_info=info if info.update_available else None)
+        elif info.update_available:
+            self._run_app_update_only(info)
+
+    def _run_recompiler_updates(
+        self, targets: list[GameRecompiler], then_app_info: Optional[AppUpdateInfo] = None
+    ) -> None:
+        dlg = QProgressDialog(
+            "Mise à jour des recompileurs…",
+            "Annuler",
+            0,
+            100,
+            self,
+        )
+        dlg.setWindowTitle("Mise à jour des recompileurs")
+        dlg.setWindowModality(Qt.WindowModality.WindowModal)
+        dlg.setMinimumDuration(0)
+        dlg.setValue(0)
+
+        w = BackupRecompilersWorker(targets, self)
+        dlg.canceled.connect(w.cancel)
+        w.log_line.connect(dlg.setLabelText)
+        w.progress_percent.connect(dlg.setValue)
+
+        def _done(success: bool, _ok: int, _total: int, summary: str) -> None:
+            self._backup_worker = None
+            dlg.close()
+            if success and self._latest_update_info is not None:
+                updated_ids = {r.id for r in targets}
+                self._latest_update_info = AppUpdateInfo(
+                    local_version=self._latest_update_info.local_version,
+                    remote_version=self._latest_update_info.remote_version,
+                    repo_url=self._latest_update_info.repo_url,
+                    branch=self._latest_update_info.branch,
+                    update_available=self._latest_update_info.update_available,
+                    checked_recompiler_ids=self._latest_update_info.checked_recompiler_ids,
+                    outdated_recompiler_ids=tuple(
+                        rid for rid in self._latest_update_info.outdated_recompiler_ids if rid not in updated_ids
+                    ),
+                )
+            self._refresh_supported_games_table()
+            if not success:
+                QMessageBox.warning(self, "Mise à jour des recompileurs", summary)
+                return
+            if then_app_info is not None:
+                self._run_app_update_only(then_app_info)
+            else:
+                local_ver, _, _ = get_local_version_info(self.root_dir)
+                self.btn_app_update.setText(f"v{local_ver} • À jour")
+                self.btn_app_update.setStyleSheet("")
+                QMessageBox.information(self, "Mises à jour terminées", summary)
+
+        w.finished_result.connect(_done)
+        self._backup_worker = w
+        w.start()
+
+    def _run_app_update_only(self, info: AppUpdateInfo) -> None:
         dlg = QProgressDialog(
             f"Téléchargement de NUP Studio v{info.remote_version}…",
             "Annuler",

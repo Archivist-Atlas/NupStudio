@@ -30,6 +30,61 @@ def _normalize_repo_base(repo_url: str) -> str:
     return base
 
 
+def fetch_remote_head_sha(repo_url: str, branch: str = "main", timeout: int = 10) -> Optional[str]:
+    """Fetch the remote HEAD commit SHA via GitHub smart-HTTP info/refs (no git CLI)."""
+    repo_base = _normalize_repo_base(repo_url)
+    url = f"{repo_base}.git/info/refs?service=git-upload-pack"
+    req = urllib.request.Request(url, headers={"User-Agent": "git/2.40"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = resp.read().decode("utf-8", errors="ignore")
+    except Exception:
+        return None
+    for br in [branch] + (["master"] if branch == "main" else []):
+        m = re.search(rf"([0-9a-f]{{40}})\s+refs/heads/{re.escape(br)}\b", data)
+        if m:
+            return m.group(1)
+    return None
+
+
+def get_local_recompiler_sha(dest_dir: Path) -> Optional[str]:
+    """Read local commit SHA from .recomp_commit or .git metadata without git CLI."""
+    marker = dest_dir / ".recomp_commit"
+    if marker.is_file():
+        try:
+            sha = marker.read_text(encoding="utf-8").strip()
+            if re.fullmatch(r"[0-9a-fA-F]{40}", sha):
+                return sha.lower()
+        except OSError:
+            pass
+
+    git_dir = dest_dir / ".git"
+    head_file = git_dir / "HEAD"
+    if head_file.is_file():
+        try:
+            head = head_file.read_text(encoding="utf-8").strip()
+            if re.fullmatch(r"[0-9a-fA-F]{40}", head):
+                return head.lower()
+            if head.startswith("ref:"):
+                ref = head.split(":", 1)[1].strip()
+                ref_file = git_dir / ref
+                if ref_file.is_file():
+                    sha = ref_file.read_text(encoding="utf-8").strip()
+                    if re.fullmatch(r"[0-9a-fA-F]{40}", sha):
+                        return sha.lower()
+                packed = git_dir / "packed-refs"
+                if packed.is_file():
+                    for line in packed.read_text(encoding="utf-8", errors="ignore").splitlines():
+                        if line.startswith("#") or line.startswith("^"):
+                            continue
+                        parts = line.split()
+                        if len(parts) == 2 and parts[1] == ref and re.fullmatch(r"[0-9a-fA-F]{40}", parts[0]):
+                            return parts[0].lower()
+        except OSError:
+            pass
+    return None
+
+
 def _download_file(
     url: str,
     dest: Path,
@@ -160,6 +215,7 @@ def download_recompiler(
         branches = [branch] + (["master"] if branch == "main" else [])
 
         last_err: Optional[Exception] = None
+        used_branch = branch
         for br in branches:
             archive_url = f"{repo_base}/archive/refs/heads/{br}.zip"
             if log_cb:
@@ -173,6 +229,7 @@ def download_recompiler(
                     cancel_check=cancel_check,
                     label=dest_dir.name,
                 )
+                used_branch = br
                 last_err = None
                 break
             except urllib.error.HTTPError as exc:
@@ -181,6 +238,8 @@ def download_recompiler(
                     raise
         if last_err is not None:
             raise last_err
+
+        remote_sha = fetch_remote_head_sha(repo_base, used_branch)
 
         if cancel_check and cancel_check():
             raise DownloadCancelledError("Téléchargement annulé par l'utilisateur.")
@@ -205,6 +264,11 @@ def download_recompiler(
         if dest_dir.exists():
             shutil.rmtree(dest_dir)
         shutil.move(str(payload_dir), str(dest_dir))
+        if remote_sha:
+            try:
+                (dest_dir / ".recomp_commit").write_text(remote_sha, encoding="utf-8")
+            except OSError:
+                pass
 
     if log_cb:
         log_cb(f"[Téléchargement] Recompileur prêt : {dest_dir}")

@@ -16,13 +16,14 @@ from .recompiler_manager import GameRecompiler
 class AppUpdateCheckWorker(QThread):
     finished_check = Signal(bool, object, str)
 
-    def __init__(self, root_dir: Path, parent=None) -> None:
+    def __init__(self, root_dir: Path, recompilers: list[GameRecompiler], parent=None) -> None:
         super().__init__(parent)
         self.root_dir = root_dir
+        self.recompilers = list(recompilers)
 
     def run(self) -> None:
         try:
-            info = check_for_app_update(self.root_dir)
+            info = check_for_app_update(self.root_dir, self.recompilers)
             self.finished_check.emit(True, info, "")
         except Exception as exc:
             self.finished_check.emit(False, None, str(exc))

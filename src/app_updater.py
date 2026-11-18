@@ -19,7 +19,10 @@ from .recompiler_downloader import (
     DownloadCancelledError,
     _download_file,
     _normalize_repo_base,
+    fetch_remote_head_sha,
+    get_local_recompiler_sha,
 )
+from .recompiler_manager import GameRecompiler
 
 
 DEFAULT_VERSION = "1.2.0"
@@ -35,6 +38,8 @@ class AppUpdateInfo:
     repo_url: str
     branch: str
     update_available: bool
+    checked_recompiler_ids: tuple[str, ...] = ()
+    outdated_recompiler_ids: tuple[str, ...] = ()
 
 
 def parse_version(version_str: str) -> tuple[int, ...]:
@@ -70,8 +75,31 @@ def _raw_version_url(repo_url: str, branch: str) -> str:
     return f"{base}/raw/{branch}/version.json"
 
 
-def check_for_app_update(root_dir: Path, timeout: int = 10) -> AppUpdateInfo:
-    """Fetch remote version.json from GitHub without git and compare versions."""
+def check_recompiler_updates(
+    recompilers: list[GameRecompiler], timeout: int = 10
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Check installed recompilers against remote GitHub HEADs without git CLI."""
+    checked: list[str] = []
+    outdated: list[str] = []
+    for rec in recompilers:
+        if not rec.is_installed or not rec.repo_url:
+            continue
+        remote_sha = fetch_remote_head_sha(rec.repo_url, rec.branch, timeout=timeout)
+        if not remote_sha:
+            continue
+        checked.append(rec.id)
+        local_sha = get_local_recompiler_sha(rec.folder)
+        if local_sha != remote_sha.lower():
+            outdated.append(rec.id)
+    return (tuple(checked), tuple(outdated))
+
+
+def check_for_app_update(
+    root_dir: Path,
+    recompilers: Optional[list[GameRecompiler]] = None,
+    timeout: int = 10,
+) -> AppUpdateInfo:
+    """Fetch remote version.json and check installed recompilers without git."""
     local_ver, repo_url, branch = get_local_version_info(root_dir)
     url = _raw_version_url(repo_url, branch)
     req = urllib.request.Request(
@@ -84,12 +112,19 @@ def check_for_app_update(root_dir: Path, timeout: int = 10) -> AppUpdateInfo:
     remote_repo = str(data.get("repo_url") or repo_url)
     remote_branch = str(data.get("branch") or branch)
     available = parse_version(remote_ver) > parse_version(local_ver)
+    checked_ids, outdated_ids = (
+        check_recompiler_updates(recompilers, timeout=timeout)
+        if recompilers
+        else ((), ())
+    )
     return AppUpdateInfo(
         local_version=local_ver,
         remote_version=remote_ver,
         repo_url=remote_repo,
         branch=remote_branch,
         update_available=available,
+        checked_recompiler_ids=checked_ids,
+        outdated_recompiler_ids=outdated_ids,
     )
 
 
