@@ -5,13 +5,15 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import re
+import sys
 import time
 from typing import Optional
 
-from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtCore import QProcess, Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QDragEnterEvent, QDropEvent, QFont, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -25,6 +27,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPlainTextEdit,
     QProgressBar,
+    QProgressDialog,
     QPushButton,
     QSizePolicy,
     QSpinBox,
@@ -35,12 +38,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .app_updater import AppUpdateInfo, get_local_version_info
 from .msys2_helper import is_msys2_ready
 from .nup_parser import NupParseError, parse_nup
 from .nup_explorer_tab import NupExplorerTab
 from .nup_tools import NupCliWorker
 from .recompiler_manager import GameRecompiler, MatchResult, RecompilerManager
 from .runner import RecompileWorker
+from .update_workers import (
+    AppUpdateApplyWorker,
+    AppUpdateCheckWorker,
+    BackupRecompilersWorker,
+)
 
 
 DARK_STYLESHEET = """
@@ -298,6 +307,10 @@ class MainWindow(QMainWindow):
         self.worker: Optional[RecompileWorker] = None
         self.extract_worker: Optional[NupCliWorker] = None
         self.pack_worker: Optional[NupCliWorker] = None
+        self._latest_update_info: Optional[AppUpdateInfo] = None
+        self._update_check_worker: Optional[AppUpdateCheckWorker] = None
+        self._update_apply_worker: Optional[AppUpdateApplyWorker] = None
+        self._backup_worker: Optional[BackupRecompilersWorker] = None
         self._compile_started_at: Optional[float] = None
         self._compile_timer = QTimer(self)
         self._compile_timer.setInterval(1000)
@@ -316,6 +329,7 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._refresh_supported_games_table()
+        QTimer.singleShot(1500, self._check_app_update_silent)
 
     def _default_output_base(self) -> Path:
         if os.name == "nt":
@@ -368,6 +382,14 @@ class MainWindow(QMainWindow):
         title_box.addWidget(subtitle)
         header_row.addLayout(title_box)
         header_row.addStretch()
+
+        local_ver, _, _ = get_local_version_info(self.root_dir)
+        self.btn_app_update = QPushButton(f"v{local_ver} • Mise à jour")
+        self.btn_app_update.setToolTip(
+            "Vérifier et installer les mises à jour de NUP Studio depuis GitHub (sans git ni dépendance externe)."
+        )
+        self.btn_app_update.clicked.connect(self._on_click_app_update)
+        header_row.addWidget(self.btn_app_update)
 
         self.badge_count = QLabel()
         self.badge_count.setStyleSheet(
@@ -570,6 +592,26 @@ class MainWindow(QMainWindow):
         games_top.addWidget(btn_refresh)
         games_top.addWidget(btn_open_dir)
         games_layout.addLayout(games_top)
+
+        backup_card = QFrame()
+        backup_card.setObjectName("Card")
+        backup_row = QHBoxLayout(backup_card)
+        backup_row.setContentsMargins(14, 10, 14, 10)
+        backup_row.setSpacing(12)
+        backup_text = QLabel(
+            "<b>Sauvegarde hors-ligne des recompileurs</b><br>"
+            "<span style='color:#94a3b8; font-size:12px;'>"
+            "Télécharge de force tous les dépôts de recompileurs dans tools/recompilers/ (sans avoir besoin d'un jeu .nup) "
+            "afin de conserver une copie complète en cas de disparition des dépôts en ligne."
+            "</span>"
+        )
+        backup_text.setWordWrap(True)
+        self.btn_backup_recompilers = QPushButton("Sauvegarder tous les recompileurs")
+        self.btn_backup_recompilers.setObjectName("PrimaryBtn")
+        self.btn_backup_recompilers.clicked.connect(self._on_click_backup_recompilers)
+        backup_row.addWidget(backup_text, stretch=1)
+        backup_row.addWidget(self.btn_backup_recompilers)
+        games_layout.addWidget(backup_card)
 
         self.games_table = QTableWidget(0, 3)
         self.games_table.setAlternatingRowColors(True)
@@ -1322,3 +1364,181 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Packaging terminé", message)
         else:
             QMessageBox.warning(self, "Packaging interrompu", message)
+
+    # ---- App Self-Updater & Recompilers Backup ----
+
+    def _check_app_update_silent(self) -> None:
+        if self._update_check_worker is not None:
+            return
+        w = AppUpdateCheckWorker(self.root_dir, self)
+        w.finished_check.connect(self._on_app_update_checked_silent)
+        self._update_check_worker = w
+        w.start()
+
+    def _on_app_update_checked_silent(
+        self, ok: bool, info: Optional[AppUpdateInfo], _err: str
+    ) -> None:
+        self._update_check_worker = None
+        if not ok or info is None:
+            return
+        self._latest_update_info = info
+        if info.update_available:
+            self.btn_app_update.setText(f"Mise à jour v{info.remote_version} disponible")
+            self.btn_app_update.setStyleSheet(
+                "background-color: #065f46; border: 1px solid #10b981; color: #ecfdf5; font-weight: 700;"
+            )
+
+    def _on_click_app_update(self) -> None:
+        if self._update_apply_worker is not None or self._update_check_worker is not None:
+            return
+        if self._latest_update_info and self._latest_update_info.update_available:
+            self._prompt_and_apply_update(self._latest_update_info)
+            return
+
+        self.btn_app_update.setEnabled(False)
+        self.btn_app_update.setText("Vérification…")
+        w = AppUpdateCheckWorker(self.root_dir, self)
+        w.finished_check.connect(self._on_app_update_checked_manual)
+        self._update_check_worker = w
+        w.start()
+
+    def _on_app_update_checked_manual(
+        self, ok: bool, info: Optional[AppUpdateInfo], err: str
+    ) -> None:
+        self._update_check_worker = None
+        self.btn_app_update.setEnabled(True)
+        local_ver, _, _ = get_local_version_info(self.root_dir)
+        self.btn_app_update.setText(f"v{local_ver} • Mise à jour")
+        if not ok or info is None:
+            QMessageBox.warning(
+                self,
+                "Vérification impossible",
+                f"Impossible de vérifier les mises à jour :\n{err}",
+            )
+            return
+        self._latest_update_info = info
+        if info.update_available:
+            self._on_app_update_checked_silent(True, info, "")
+            self._prompt_and_apply_update(info)
+        else:
+            QMessageBox.information(
+                self,
+                "Application à jour",
+                f"NUP Studio est déjà à jour (version {info.local_version}).",
+            )
+
+    def _prompt_and_apply_update(self, info: AppUpdateInfo) -> None:
+        ans = QMessageBox.question(
+            self,
+            "Mise à jour disponible",
+            f"Une nouvelle version de NUP Studio est disponible :\n\n"
+            f"• Version actuelle : {info.local_version}\n"
+            f"• Nouvelle version : {info.remote_version}\n\n"
+            f"Télécharger et installer la mise à jour maintenant ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if ans != QMessageBox.StandardButton.Yes:
+            return
+
+        dlg = QProgressDialog(
+            f"Téléchargement de NUP Studio v{info.remote_version}…",
+            "Annuler",
+            0,
+            100,
+            self,
+        )
+        dlg.setWindowTitle("Mise à jour de NUP Studio")
+        dlg.setWindowModality(Qt.WindowModality.WindowModal)
+        dlg.setMinimumDuration(0)
+        dlg.setValue(0)
+
+        w = AppUpdateApplyWorker(self.root_dir, info, self)
+        dlg.canceled.connect(w.cancel)
+        w.log_line.connect(dlg.setLabelText)
+        w.progress_percent.connect(dlg.setValue)
+
+        def _done(success: bool, external_restart: bool, message: str) -> None:
+            self._update_apply_worker = None
+            dlg.close()
+            if not success:
+                QMessageBox.warning(self, "Mise à jour", message)
+                return
+            if external_restart:
+                QMessageBox.information(
+                    self,
+                    "Mise à jour prête",
+                    f"{message}\n\nNUP Studio va redémarrer pour finaliser la mise à jour.",
+                )
+                QApplication.quit()
+                return
+            ans_restart = QMessageBox.question(
+                self,
+                "Mise à jour installée",
+                f"{message}\n\nRedémarrer NUP Studio maintenant ?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if ans_restart == QMessageBox.StandardButton.Yes:
+                QProcess.startDetached(sys.executable, sys.argv)
+                QApplication.quit()
+
+        w.finished_result.connect(_done)
+        self._update_apply_worker = w
+        w.start()
+
+    def _on_click_backup_recompilers(self) -> None:
+        if self._backup_worker is not None:
+            return
+        self.manager.refresh()
+        targets = [r for r in self.manager.recompilers if r.repo_url]
+        if not targets:
+            QMessageBox.information(
+                self,
+                "Sauvegarde",
+                "Aucun recompileur avec dépôt GitHub configuré n'a été trouvé dans le catalogue.",
+            )
+            return
+
+        ans = QMessageBox.question(
+            self,
+            "Sauvegarder tous les recompileurs",
+            f"Cette opération va télécharger de force les {len(targets)} recompileurs dans :\n"
+            f"{self.manager.recompilers_dir}\n\n"
+            "Même les recompileurs déjà présents seront retéléchargés et mis à jour "
+            "(sauvegarde hors-ligne complète en cas de perte des dépôts).\n\n"
+            "Continuer ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if ans != QMessageBox.StandardButton.Yes:
+            return
+
+        self.btn_backup_recompilers.setEnabled(False)
+        dlg = QProgressDialog(
+            "Préparation de la sauvegarde des recompileurs…",
+            "Annuler",
+            0,
+            100,
+            self,
+        )
+        dlg.setWindowTitle("Sauvegarde des recompileurs")
+        dlg.setWindowModality(Qt.WindowModality.WindowModal)
+        dlg.setMinimumDuration(0)
+        dlg.setValue(0)
+
+        w = BackupRecompilersWorker(targets, self)
+        dlg.canceled.connect(w.cancel)
+        w.log_line.connect(dlg.setLabelText)
+        w.progress_percent.connect(dlg.setValue)
+
+        def _done(success: bool, _ok: int, _total: int, summary: str) -> None:
+            self._backup_worker = None
+            dlg.close()
+            self.btn_backup_recompilers.setEnabled(True)
+            self._refresh_supported_games_table()
+            if success:
+                QMessageBox.information(self, "Sauvegarde terminée", summary)
+            else:
+                QMessageBox.warning(self, "Sauvegarde", summary)
+
+        w.finished_result.connect(_done)
+        self._backup_worker = w
+        w.start()
