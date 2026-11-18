@@ -49,6 +49,7 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
 | **Mario Kart World** | mkw-recomp (adriadam10) | `0400C3F00006E000`, `0400C3F00006E800` | SDL3 / Vulkan |
 | **Donkey Kong Bananza** | DKB Recomp (dkb-pc-recomp) | `040074A01BF12000`, `040074A01BF12800` | SDL3 / Vulkan |
 | **Pokémon Legends: Z-A** | PokeZ-ARecomp (LASRecomp) | `0100F43008C44000`, `0100F43008C44800` | SDL3 / Vulkan |
+| **Mario Tennis Fever** | MTF Recomp | `0400D4201C6EA000`, `0400D4201C6EA800` | Win32 / Vulkan |
 
 
 ## Fonctionnalités
