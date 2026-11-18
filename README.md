@@ -16,18 +16,24 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
 -----------
 ## Super Mario Bros. Wonder
 <p align="center">
-  <img src="assets/capture_2.jpg" alt="Super Mario Bros. Wonder recompilé sur PC Windows" width="900">
+  <img src="assets/screen_1.jpg" alt="Super Mario Bros. Wonder recompilé sur PC Windows" width="900">
 </p>
 
 ## The Legend of Zelda: Ocarina of Time
 <p align="center">
-  <img src="assets/capture_3.jpg" alt="The Legend of Zelda: Ocarina of Time recompilé sur PC Windows" width="900">
+  <img src="assets/screen_2.jpg" alt="The Legend of Zelda: Ocarina of Time recompilé sur PC Windows" width="900">
 </p>
 
 ## Mario Kart World
 <p align="center">
-  <img src="assets/capture_4.jpg" alt="Mario Kart World recompilé sur PC Windows" width="900">
+  <img src="assets/screen_3.jpg" alt="Mario Kart World recompilé sur PC Windows" width="900">
 </p>
+
+## Donkey Kong Bananza
+<p align="center">
+  <img src="assets/screen_4.jpg" alt="Donkey Kong Bananza recompilé sur PC Windows" width="900">
+</p>
+
 
 
 ## Jeux supportés
@@ -37,6 +43,7 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
 | **The Legend of Zelda: Ocarina of Time** | TOoT:R (The Ocarina of Time: Recomp) | `0400486024DEC000`, `0400486024DEC800` | SDL3 / Vulkan / FFmpeg |
 | **Super Mario Bros. Wonder** | SMW PC Recomp (Belmante / SMW-Maker) | `010015100B514000` | SDL3 / Vulkan |
 | **Mario Kart World** | mkw-recomp (adriadam10) | `0400C3F00006E000`, `0400C3F00006E800` | SDL3 / Vulkan |
+| **Donkey Kong Bananza** | DKB Recomp (dkb-pc-recomp) | `040074A01BF12000`, `040074A01BF12800` | SDL3 / Vulkan |
 
 
 ## Fonctionnalités
