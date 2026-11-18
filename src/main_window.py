@@ -1600,7 +1600,7 @@ class MainWindow(QMainWindow):
         intro = QLabel(
             "<b>Crédits — Contributeurs des recompileurs initiaux</b><br>"
             "<span style='color:#94a3b8;'>"
-            "Remerciements aux développeurs et contributeurs des 6 recompileurs de base sur lesquels s'appuie NUP Studio :"
+            "Remerciements aux développeurs et contributeurs des recompileurs initiaux sur lesquels s'appuie NUP Studio :"
             "</span>"
         )
         intro.setWordWrap(True)
