@@ -1615,9 +1615,11 @@ class MainWindow(QMainWindow):
         browser.setHtml(
             """
             <style>
-              h3 { color: #60a5fa; margin-top: 14px; margin-bottom: 4px; }
+              h2 { color: #f8fafc; font-size: 15px; margin-top: 16px; margin-bottom: 6px; border-bottom: 1px solid #1f2937; padding-bottom: 4px; }
+              h3 { color: #60a5fa; margin-top: 12px; margin-bottom: 4px; }
               p { margin-top: 0px; margin-bottom: 10px; line-height: 1.45; color: #cbd5e1; }
             </style>
+            <h2>Contributeurs des recompileurs initiaux</h2>
             <h3>The Legend of Zelda: Ocarina of Time (TOoT:R)</h3>
             <p>Unkn0wnAli4n</p>
 
@@ -1645,6 +1647,10 @@ class MainWindow(QMainWindow):
             <p>Kayo Chiaradia et les contributeurs des briques de base utilisées
             (Valiantsin Dzerakh / TotK Recomp, Peiikai / LASRecomp, MacNativeGames, jhaizhou / d2r-mobile,
             seedds / nxnative, a55uka / nup, Revivedx / SavageWindRecomp, NotRexed / Hookshot)</p>
+
+            <h2>Outils NUP (Packager &amp; Extractor — indépendants des recompileurs)</h2>
+            <h3>nup (<a href="https://github.com/a55uka/nup" style="color:#93c5fd;">github.com/a55uka/nup</a>)</h3>
+            <p>a55uka, CoolCat467, Kabosune</p>
             """
         )
         layout.addWidget(browser, stretch=1)

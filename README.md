@@ -102,6 +102,8 @@ python main.py
 
 ## Crédits
 
+### Contributeurs des recompileurs initiaux
+
 Les personnes listées ci-dessous sont les **contributeurs des recompileurs initiaux** sur lesquels s'appuient les jeux gérés par NUP Studio :
 
 - **The Legend of Zelda: Ocarina of Time** (`TOoT:R`) : Unkn0wnAli4n
@@ -110,6 +112,12 @@ Les personnes listées ci-dessous sont les **contributeurs des recompileurs init
 - **Donkey Kong Bananza** (`DKB Recomp / dkb-pc-recomp`) : applezra, arthurhfcardoso, Custerok8814, devadobe11-pixel, dwk001, Esa, Felitendo, Kvinkxerli, lcd1232, Liam Valty, Lucas Daniel Duarte Cabral, Lucas-blip-png, Luis Hansen, lunar-me, MamamaNanana-dot, Marjaperse, Martin Grahn, MatyMeatBoy, monsterlag, mrtink125792, NotShiny, Osama Shoubber, Osohow, Pasha Kagan, philneitz, PorlocK-BR, Seth, shadowlink1174, shenjack, thatbananaman08, tuwary, Valiantsin Dzerakh, Vicente Mediano, Wellington Dias, wrothgaril, zswxp59
 - **Pokémon Legends: Z-A** (`PokeZ-ARecomp / LASRecomp`) : aqali1, Atterax, AzleKayn, DieMitchell, dvilela, Felipe Dias, gabrielsem16-bot, German Torres, gitarre1234rr5, Hexveil404, huangjianqin, Krijn kok, ky1vstar, lucabravi, Maganra, Man Sarip, NevesHenry, Oscar Andrén, Peiikai, Primož Ocepek, Tensorlong, Tristan, we11adam, wimw85
 - **Mario Tennis Fever** (`MTF Recomp`) : Kayo Chiaradia et les contributeurs des projets de base utilisés (Valiantsin Dzerakh / TotK Recomp, Peiikai / LASRecomp, MacNativeGames, jhaizhou / d2r-mobile, seedds / nxnative, a55uka / nup, Revivedx / SavageWindRecomp, NotRexed / Hookshot)
+
+### Contributeurs des outils NUP (Packager & Extractor)
+
+Les outils d'extraction et de packaging `.nup` intégrés à NUP Studio s'appuient sur le projet indépendant [a55uka/nup](https://github.com/a55uka/nup) (distinct des recompileurs de jeux) :
+
+- **`nup` (`tools/packagers` & `tools/extractors`)** : a55uka, CoolCat467, Kabosune
 
 
 ## Avertissement
