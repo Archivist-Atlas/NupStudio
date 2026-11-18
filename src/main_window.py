@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QTableWidget,
     QTableWidgetItem,
+    QTextBrowser,
     QVBoxLayout,
     QWidget,
 )
@@ -634,6 +635,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab_games, "Recompileurs")
         self._build_extract_tab()
         self._build_pack_tab()
+        self._build_credits_tab()
 
     def _build_extract_tab(self) -> None:
         tab = QWidget()
@@ -1587,6 +1589,66 @@ class MainWindow(QMainWindow):
         w.finished_result.connect(_done)
         self._update_apply_worker = w
         w.start()
+
+    def _build_credits_tab(self) -> None:
+        tab = QWidget()
+        tab.setObjectName("TabPage")
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(12)
+
+        intro = QLabel(
+            "<b>Crédits — Contributeurs des recompileurs initiaux</b><br>"
+            "<span style='color:#94a3b8;'>"
+            "Remerciements aux développeurs et contributeurs des 6 recompileurs de base sur lesquels s'appuie NUP Studio :"
+            "</span>"
+        )
+        intro.setWordWrap(True)
+        layout.addWidget(intro)
+
+        browser = QTextBrowser()
+        browser.setOpenExternalLinks(True)
+        browser.setStyleSheet(
+            "background-color: #111827; border: 1px solid #1f2937; border-radius: 10px; "
+            "padding: 12px; color: #e2e8f0; font-size: 13px;"
+        )
+        browser.setHtml(
+            """
+            <style>
+              h3 { color: #60a5fa; margin-top: 14px; margin-bottom: 4px; }
+              p { margin-top: 0px; margin-bottom: 10px; line-height: 1.45; color: #cbd5e1; }
+            </style>
+            <h3>The Legend of Zelda: Ocarina of Time (TOoT:R)</h3>
+            <p>Unkn0wnAli4n</p>
+
+            <h3>Super Mario Bros. Wonder (SMW PC Recomp)</h3>
+            <p>BelmanteGu (Belmante / SMW-Maker)</p>
+
+            <h3>Mario Kart World (mkw-recomp)</h3>
+            <p>Adrià (adriadam10), Andrade_DEV, Andre Rinas, EdouardSence, Elenedeath Olawir, Flávio Alves,
+            guillo1990, Igor Lomba, innateessence, mitch030504, riyadhHDA, Robert-Hoffman04, SavageCore,
+            tibor-stick, titooo7, Vinicius Stanula</p>
+
+            <h3>Donkey Kong Bananza (DKB Recomp / dkb-pc-recomp)</h3>
+            <p>applezra, arthurhfcardoso, Custerok8814, devadobe11-pixel, dwk001, Esa, Felitendo, Kvinkxerli,
+            lcd1232, Liam Valty, Lucas Daniel Duarte Cabral, Lucas-blip-png, Luis Hansen, lunar-me,
+            MamamaNanana-dot, Marjaperse, Martin Grahn, MatyMeatBoy, monsterlag, mrtink125792, NotShiny,
+            Osama Shoubber, Osohow, Pasha Kagan, philneitz, PorlocK-BR, Seth, shadowlink1174, shenjack,
+            thatbananaman08, tuwary, Valiantsin Dzerakh, Vicente Mediano, Wellington Dias, wrothgaril, zswxp59</p>
+
+            <h3>Pokémon Legends: Z-A (PokeZ-ARecomp / LASRecomp)</h3>
+            <p>aqali1, Atterax, AzleKayn, DieMitchell, dvilela, Felipe Dias, gabrielsem16-bot, German Torres,
+            gitarre1234rr5, Hexveil404, huangjianqin, Krijn kok, ky1vstar, lucabravi, Maganra, Man Sarip,
+            NevesHenry, Oscar Andrén, Peiikai, Primož Ocepek, Tensorlong, Tristan, we11adam, wimw85</p>
+
+            <h3>Mario Tennis Fever (MTF Recomp)</h3>
+            <p>Kayo Chiaradia et les contributeurs des briques de base utilisées
+            (Valiantsin Dzerakh / TotK Recomp, Peiikai / LASRecomp, MacNativeGames, jhaizhou / d2r-mobile,
+            seedds / nxnative, a55uka / nup, Revivedx / SavageWindRecomp, NotRexed / Hookshot)</p>
+            """
+        )
+        layout.addWidget(browser, stretch=1)
+        self.tabs.addTab(tab, "Crédits")
 
     def _on_click_backup_recompilers(self) -> None:
         if self._backup_worker is not None:
