@@ -102,7 +102,7 @@ python main.py
 
 ## Crédits
 
-Les personnes listées ci-dessous sont les **contributeurs des recompileurs initiaux** sur lesquels s'appuient les 6 jeux gérés par NUP Studio :
+Les personnes listées ci-dessous sont les **contributeurs des recompileurs initiaux** sur lesquels s'appuient les jeux gérés par NUP Studio :
 
 - **The Legend of Zelda: Ocarina of Time** (`TOoT:R`) : Unkn0wnAli4n
 - **Super Mario Bros. Wonder** (`SMW PC Recomp`) : BelmanteGu (Belmante / SMW-Maker)
