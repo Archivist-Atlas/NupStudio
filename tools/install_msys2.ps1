@@ -29,6 +29,7 @@ $requiredFiles = @(
     (Join-Path $clang64 "cmake.exe"),
     (Join-Path $clang64 "ninja.exe"),
     (Join-Path $clang64 "python.exe"),
+    (Join-Path $Msys "clang64\include\capstone\capstone.h"),
     (Join-Path $Msys "clang64\include\SDL3\SDL.h"),
     (Join-Path $Msys "clang64\include\vpx\vpx_decoder.h"),
     (Join-Path $Msys "clang64\include\vma\vk_mem_alloc.h")
@@ -101,7 +102,7 @@ Say "Mise $([char]0x00E0) jour de MSYS2 et installation des outils Clang64 (cela
 & $bash -lc "pacman -Syu --noconfirm" | Out-Host
 & $bash -lc "pacman -Syu --noconfirm" | Out-Host
 
-$packages = "clang lld cmake ninja python python-numpy python-lz4 pkgconf sdl3 opus ffmpeg libvpx vulkan-loader vulkan-headers vulkan-memory-allocator shaderc spirv-tools fmt zstd lz4 xxhash" -split " " |
+$packages = "clang lld cmake ninja python python-numpy python-lz4 python-capstone pkgconf sdl3 opus ffmpeg libvpx vulkan-loader vulkan-headers vulkan-memory-allocator shaderc spirv-tools fmt zstd lz4 xxhash" -split " " |
     ForEach-Object { "mingw-w64-clang-x86_64-$_" }
 Invoke-Msys ("pacman -S --needed --noconfirm make " + ($packages -join " "))
 

@@ -122,5 +122,25 @@
     "repo_url": "https://github.com/Archivist-Atlas/recompiler-mario-tennis-fever.git",
     "branch": "main",
     "description": "Recompile Mario Tennis Fever (Nintendo Switch 2, v1.1.1 depuis votre .nup) en exécutable Windows PC natif (Vulkan, mode fenêtré 720p par défaut, plein écran via F11, Échap pour quitter)."
+  },
+  {
+    "id": "pokemon-pokopia",
+    "name": "Pokémon Pokopia",
+    "recompiler_name": "Recompia (pokopia-recomp)",
+    "title_ids": [
+      "0400A3A01EE4C000",
+      "0400A3A01EE4C800"
+    ],
+    "supported_versions": [
+      0
+    ],
+    "default_output_subdir": "Pokemon Pokopia",
+    "shortcut_name": "Pokemon Pokopia",
+    "windows_entrypoint": "install.ps1",
+    "linux_entrypoint": "install.sh",
+    "icon": "game_icon.ico",
+    "repo_url": "https://github.com/Archivist-Atlas/recompiler-pokemon-pokopia.git",
+    "branch": "main",
+    "description": "Recompile Pokémon Pokopia (Nintendo Switch 2 depuis votre .nup) en exécutable Windows PC natif (SDL3 / Vulkan, mode fenêtré 720p par défaut, plein écran via F11, Échap pour quitter)."
   }
 ]

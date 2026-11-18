@@ -55,6 +55,7 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
 | **Donkey Kong Bananza** | DKB Recomp (dkb-pc-recomp) | `040074A01BF12000`, `040074A01BF12800` | SDL3 / Vulkan |
 | **Pokémon Legends: Z-A** | PokeZ-ARecomp (LASRecomp) | `0100F43008C44000`, `0100F43008C44800` | SDL3 / Vulkan |
 | **Mario Tennis Fever** | MTF Recomp | `0400D4201C6EA000`, `0400D4201C6EA800` | Win32 / Vulkan |
+| **Pokémon Pokopia** | Recompia (pokopia-recomp) | `0400A3A01EE4C000`, `0400A3A01EE4C800` | SDL3 / Vulkan |
 
 
 ## Fonctionnalités
