@@ -1,4 +1,4 @@
-﻿# Global MSYS2 (Clang64) installer for NUP Studio / Switch2Recomp
+# Global MSYS2 (Clang64) installer for NUP Studio / Switch2Recomp
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File install_msys2.ps1 [-Msys C:\msys64] [-Yes]
 param(
     [string]$Msys = "C:\msys64",
