@@ -34,6 +34,10 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
   <img src="assets/screen_4.jpg" alt="Donkey Kong Bananza recompilé sur PC Windows" width="900">
 </p>
 
+## Pokémon Legends: Z-A
+<p align="center">
+  <img src="assets/screen_5.jpg" alt="Pokémon Legends: Z-A recompilé sur PC Windows" width="900">
+</p>
 
 
 ## Jeux supportés
