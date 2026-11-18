@@ -14,6 +14,7 @@ def is_msys2_ready(msys_dir: Path = DEFAULT_MSYS2_DIR) -> bool:
         return True
     required = [
         msys_dir / "usr" / "bin" / "bash.exe",
+        msys_dir / "usr" / "bin" / "make.exe",
         msys_dir / "clang64" / "bin" / "clang.exe",
         msys_dir / "clang64" / "bin" / "clang++.exe",
         msys_dir / "clang64" / "bin" / "lld.exe",

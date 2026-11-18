@@ -524,6 +524,7 @@ def test_msys2_helper_detects_missing_and_ready(tmp_path: Path) -> None:
     assert is_msys2_ready(tmp_path / "msys64") is False
     for rel in (
         "usr/bin/bash.exe",
+        "usr/bin/make.exe",
         "clang64/bin/clang.exe",
         "clang64/bin/clang++.exe",
         "clang64/bin/lld.exe",

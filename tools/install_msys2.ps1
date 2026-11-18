@@ -22,6 +22,7 @@ $bash = Join-Path $Msys "usr\bin\bash.exe"
 $clang64 = Join-Path $Msys "clang64\bin"
 $requiredFiles = @(
     $bash,
+    (Join-Path $Msys "usr\bin\make.exe"),
     (Join-Path $clang64 "clang.exe"),
     (Join-Path $clang64 "clang++.exe"),
     (Join-Path $clang64 "lld.exe"),
@@ -102,7 +103,7 @@ Say "Mise à jour de MSYS2 et installation des outils Clang64 (cela peut prendre
 
 $packages = "clang lld cmake ninja python python-numpy python-lz4 pkgconf sdl3 opus ffmpeg libvpx vulkan-loader vulkan-headers vulkan-memory-allocator shaderc spirv-tools fmt zstd lz4 xxhash" -split " " |
     ForEach-Object { "mingw-w64-clang-x86_64-$_" }
-Invoke-Msys ("pacman -S --needed --noconfirm " + ($packages -join " "))
+Invoke-Msys ("pacman -S --needed --noconfirm make " + ($packages -join " "))
 
 Say "MSYS2 (Clang64) installé et configuré avec succès dans $Msys."
 exit 0
