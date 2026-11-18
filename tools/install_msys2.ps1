@@ -43,7 +43,7 @@ foreach ($req in $requiredFiles) {
 }
 
 if ($allReady) {
-    Say "MSYS2 (Clang64) est déjà installé et prêt dans $Msys."
+    Say "MSYS2 (Clang64) est d$([char]0x00E9)j$([char]0x00E0) install$([char]0x00E9) et pr$([char]0x00EA)t dans $Msys."
     exit 0
 }
 
@@ -52,18 +52,18 @@ if (-not $Yes) {
     try {
         Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
         $res = [System.Windows.Forms.MessageBox]::Show(
-            "MSYS2 (Clang64) est nécessaire pour recompiler ce jeu et va être installé sur votre lecteur C ($Msys).`n`nSouhaitez-vous installer MSYS2 et les outils de compilation maintenant ?`n(Si vous refusez, la recompilation sera arrêtée.)",
+            "MSYS2 (Clang64) est n$([char]0x00E9)cessaire pour recompiler ce jeu et va $([char]0x00EA)tre install$([char]0x00E9) sur votre lecteur C ($Msys).`n`nSouhaitez-vous installer MSYS2 et les outils de compilation maintenant ?`n(Si vous refusez, la recompilation sera arr$([char]0x00EA)t$([char]0x00E9)e.)",
             "Installation requise : MSYS2",
             [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Question
         )
         $confirmed = ($res -eq [System.Windows.Forms.DialogResult]::Yes)
     } catch {
-        $ans = Read-Host "MSYS2 va être installé dans $Msys. Continuer ? [O/n]"
+        $ans = Read-Host "MSYS2 va $([char]0x00EA)tre install$([char]0x00E9) dans $Msys. Continuer ? [O/n]"
         $confirmed = ($ans -eq "" -or $ans -match "^[OoYy]")
     }
     if (-not $confirmed) {
-        Say "Installation de MSYS2 refusée par l'utilisateur. Recompilation annulée."
+        Say "Installation de MSYS2 refus$([char]0x00E9)e par l'utilisateur. Recompilation annul$([char]0x00E9)e."
         exit 1
     }
 }
@@ -77,7 +77,7 @@ if (-not (Test-Path -LiteralPath $bash)) {
     }
     if (-not $installed) {
         $setup = Join-Path $env:TEMP "msys2-installer.exe"
-        Say "Téléchargement de l'installeur MSYS2..."
+        Say "T$([char]0x00E9)l$([char]0x00E9)chargement de l'installeur MSYS2..."
         Invoke-WebRequest "https://repo.msys2.org/distrib/msys2-x86_64-latest.exe" -OutFile $setup
         & $setup in --confirm-command --accept-messages --root ($Msys -replace '\\', '/') | Out-Null
         Remove-Item -LiteralPath $setup -Force -ErrorAction SilentlyContinue
@@ -93,11 +93,11 @@ function Invoke-Msys($cmd) {
     $env:CHERE_INVOKING = "1"
     & $bash -lc $cmd
     if ($LASTEXITCODE -ne 0) {
-        throw "Échec de la commande MSYS2 : $cmd"
+        throw "$([char]0x00C9)chec de la commande MSYS2 : $cmd"
     }
 }
 
-Say "Mise à jour de MSYS2 et installation des outils Clang64 (cela peut prendre quelques minutes la première fois)..."
+Say "Mise $([char]0x00E0) jour de MSYS2 et installation des outils Clang64 (cela peut prendre quelques minutes la premi$([char]0x00E8)re fois)..."
 & $bash -lc "pacman -Syu --noconfirm" | Out-Host
 & $bash -lc "pacman -Syu --noconfirm" | Out-Host
 
@@ -105,5 +105,5 @@ $packages = "clang lld cmake ninja python python-numpy python-lz4 pkgconf sdl3 o
     ForEach-Object { "mingw-w64-clang-x86_64-$_" }
 Invoke-Msys ("pacman -S --needed --noconfirm make " + ($packages -join " "))
 
-Say "MSYS2 (Clang64) installé et configuré avec succès dans $Msys."
+Say "MSYS2 (Clang64) install$([char]0x00E9) et configur$([char]0x00E9) avec succ$([char]0x00E8)s dans $Msys."
 exit 0
