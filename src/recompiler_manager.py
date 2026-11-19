@@ -44,7 +44,6 @@ class MatchResult:
     known_game_name: Optional[str]
     recompiler: Optional[GameRecompiler]
     version_supported: bool
-    is_generic: bool = False
 
 
 class RecompilerManager:
@@ -181,25 +180,11 @@ class RecompilerManager:
             (self._games_db[tid] for tid in candidate_ids if tid in self._games_db),
             None,
         )
-        is_generic = False
-        if matched is None:
-            generic_rec = next(
-                (r for r in self._recompilers if r.id == "generic-recompiler"),
-                None,
-            )
-            if generic_rec is not None:
-                matched = generic_rec
-                is_generic = True
-                version_ok = True
-            else:
-                version_ok = False
-        else:
-            version_ok = matched.supports_version(nup.version)
+        version_ok = matched.supports_version(nup.version) if matched else False
         return MatchResult(
             nup=nup,
             known_game_name=known_name,
             recompiler=matched,
             version_supported=version_ok,
-            is_generic=is_generic,
         )
 
