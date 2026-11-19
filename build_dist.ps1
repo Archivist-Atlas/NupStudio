@@ -39,6 +39,7 @@ python -m PyInstaller `
     --noconfirm --clean --onefile --windowed `
     --name "game_launcher" `
     --icon (Join-Path $root "assets\app_icon.ico") `
+    --paths (Join-Path $root "src") `
     --distpath (Join-Path $root "tools") `
     --workpath (Join-Path $tmpWork "launcher") `
     --specpath $tmpWork `

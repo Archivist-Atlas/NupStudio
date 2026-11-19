@@ -29,6 +29,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+try:
+    from src.nup_parser import NupParseError, parse_nup
+except ImportError:
+    from nup_parser import NupParseError, parse_nup
+
 
 STYLESHEET = """
 QMainWindow, QWidget#Root {
@@ -504,6 +509,37 @@ class GameLauncherWindow(QMainWindow):
                     "Veuillez sélectionner un fichier .nup valide avant de démarrer le jeu.",
                 )
                 return
+            try:
+                nup_info = parse_nup(rom_path)
+            except NupParseError as exc:
+                QMessageBox.warning(
+                    self,
+                    "ROM invalide",
+                    f"Le fichier sélectionné n'est pas un package .nup valide :\n{exc}",
+                )
+                return
+            expected_ids = {
+                str(tid).upper()
+                for tid in (self.config.get("expected_title_ids") or [])
+                if tid
+            }
+            if expected_ids:
+                found_ids = {nup_info.title_id.upper()}
+                for pkg in nup_info.all_packages:
+                    found_ids.add(pkg.title_id.upper())
+                expanded_found = set(found_ids)
+                for tid in found_ids:
+                    if tid.endswith("800"):
+                        expanded_found.add(tid[:-3] + "000")
+                if not (expanded_found & expected_ids):
+                    QMessageBox.warning(
+                        self,
+                        "Mauvaise ROM (.nup)",
+                        f"Ce fichier .nup correspond au Title ID {nup_info.title_id}, "
+                        f"alors que ce jeu attend : {', '.join(sorted(expected_ids))}.\n\n"
+                        "Veuillez sélectionner la ROM .nup correspondant au jeu.",
+                    )
+                    return
 
         self._save_settings()
         env = dict(os.environ)
@@ -531,6 +567,9 @@ class GameLauncherWindow(QMainWindow):
                 env[var] = str(val)
 
         cmd = list(self.config.get("command", [])) + self.extra_args
+        if self.rom_env_var and self.rom_input is not None:
+            rom_val = self.rom_input.text().strip()
+            cmd = [str(part).replace("{rom}", rom_val) for part in cmd]
         cwd = str(self.config.get("working_dir") or self.base_dir)
         env["PYTHONUNBUFFERED"] = "1"
         app = QApplication.instance()

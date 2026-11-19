@@ -938,6 +938,43 @@ class MainWindow(QMainWindow):
             return
 
         rec = match.recompiler
+        if match.is_generic:
+            game_label = match.known_game_name or nup.file_path.stem or f"Game_{nup.title_id}"
+            reply = QMessageBox.question(
+                self,
+                "Recompileur générique (expérimental)",
+                f"NUP Studio n'a actuellement pas de recompileur dédié intégré pour « {game_label} » ({nup.title_id}).\n\n"
+                "Souhaitez-vous tenter la recompilation avec le recompileur générique ?\n\n"
+                "Attention : il n'y a aucune garantie sur le résultat.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                self._set_badge("Non supporté pour le moment", "#7f1d1d", "#fecaca")
+                self.lbl_status_detail.setText(
+                    f"Aucun recompileur dédié pour {nup.title_id}. Recompilation générique annulée par l'utilisateur."
+                )
+                self.btn_compile.setEnabled(False)
+                self._append_log(
+                    f"[Analyse] {game_label} ({nup.title_id} v{nup.version}) — recompilation générique refusée par l'utilisateur."
+                )
+                return
+
+            safe_sub = "".join(c for c in game_label if c not in '<>:"/\\|?*').strip() or f"Game_{nup.title_id}"
+            suggested_out = self._default_output_base() / safe_sub
+            self.out_input.setText(str(suggested_out))
+            self._set_badge("Recompilation générique (expérimental)", "#1e3a8a", "#bfdbfe")
+            self.lbl_status_detail.setText(
+                f"Aucun recompileur dédié pour {nup.title_id}. "
+                "Le recompileur générique (nxrecomp + nxrt) va tenter une recompilation automatique (sans garantie)."
+            )
+            self.btn_compile.setEnabled(self.worker is None)
+            self._append_log(
+                f"[Analyse] {game_label} ({nup.title_id} v{nup.version}, {_format_size(nup.file_size)}) "
+                "-> tools/recompilers/generic-recompiler (mode générique)"
+            )
+            return
+
         suggested_out = self._default_output_base() / self._game_folder_name(rec)
         self.out_input.setText(str(suggested_out))
 
@@ -990,7 +1027,15 @@ class MainWindow(QMainWindow):
         rec = self.current_match.recompiler
         rom_path = self.current_match.nup.file_path
         out_dir = Path(out_text)
-        game_sub = self._game_folder_name(rec)
+        if self.current_match.is_generic:
+            game_label = (
+                self.current_match.known_game_name
+                or self.current_match.nup.file_path.stem
+                or f"Game_{self.current_match.nup.title_id}"
+            )
+            game_sub = "".join(c for c in game_label if c not in '<>:"/\\|?*').strip() or f"Game_{self.current_match.nup.title_id}"
+        else:
+            game_sub = self._game_folder_name(rec)
         if out_dir.name.lower() != game_sub.lower():
             out_dir = out_dir / game_sub
             self.out_input.setText(str(out_dir))
