@@ -960,7 +960,7 @@ class MainWindow(QMainWindow):
                 )
                 return
 
-            safe_sub = "".join(c for c in game_label if c not in '<>:"/\\|?*').strip() or f"Game_{nup.title_id}"
+            safe_sub = "".join(c for c in game_label if c not in '<>:"/\\|?*[]').strip() or f"Game_{nup.title_id}"
             suggested_out = self._default_output_base() / safe_sub
             self.out_input.setText(str(suggested_out))
             self._set_badge("Recompilation générique (expérimental)", "#1e3a8a", "#bfdbfe")
@@ -1033,7 +1033,7 @@ class MainWindow(QMainWindow):
                 or self.current_match.nup.file_path.stem
                 or f"Game_{self.current_match.nup.title_id}"
             )
-            game_sub = "".join(c for c in game_label if c not in '<>:"/\\|?*').strip() or f"Game_{self.current_match.nup.title_id}"
+            game_sub = "".join(c for c in game_label if c not in '<>:"/\\|?*[]').strip() or f"Game_{self.current_match.nup.title_id}"
         else:
             game_sub = self._game_folder_name(rec)
         if out_dir.name.lower() != game_sub.lower():
