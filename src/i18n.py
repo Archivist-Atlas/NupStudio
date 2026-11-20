@@ -25,6 +25,14 @@ def _settings_path() -> Path:
     return Path.home() / ".config" / "switch2recomp" / "nup_studio_settings.json"
 
 
+def language_config_path() -> Path:
+    """Shared language config in the parent folder of Switch2Recomp installations."""
+    if os.name == "nt":
+        base = os.environ.get("LOCALAPPDATA") or str(Path.home())
+        return Path(base) / "Switch2Recomp" / "language_config.json"
+    return Path.home() / ".local" / "share" / "switch2recomp" / "language_config.json"
+
+
 class I18nManager:
     """Loads translations from i18n/<lang>.json with French fallback."""
 
@@ -54,15 +62,16 @@ class I18nManager:
 
     def _load_saved_language(self) -> str:
         valid = {code for code, _ in SUPPORTED_LANGUAGES}
-        p = _settings_path()
-        if p.is_file():
-            try:
-                data = json.loads(p.read_text(encoding="utf-8"))
-                lang = str(data.get("language") or "fr").lower()
-                if lang in valid:
-                    return lang
-            except (OSError, ValueError):
-                pass
+        for p, key in ((language_config_path(), "language_default"), (_settings_path(), "language")):
+            if p.is_file():
+                try:
+                    data = json.loads(p.read_text(encoding="utf-8"))
+                    if isinstance(data, dict):
+                        lang = str(data.get(key) or "").lower()
+                        if lang in valid:
+                            return lang
+                except (OSError, ValueError):
+                    pass
         return "fr"
 
     def set_language(self, lang: str) -> None:
@@ -73,6 +82,27 @@ class I18nManager:
         self._strings = (
             self._fallback if lang == "fr" else self._load_file(lang)
         )
+        # Persist global default in Switch2Recomp/language_config.json
+        cfg_p = language_config_path()
+        try:
+            cfg_p.parent.mkdir(parents=True, exist_ok=True)
+            cfg_data: dict[str, Any] = {}
+            if cfg_p.is_file():
+                try:
+                    loaded = json.loads(cfg_p.read_text(encoding="utf-8"))
+                    if isinstance(loaded, dict):
+                        cfg_data = loaded
+                except (OSError, ValueError):
+                    pass
+            cfg_data["language_default"] = lang
+            if not isinstance(cfg_data.get("games"), dict):
+                cfg_data["games"] = {}
+            cfg_p.write_text(
+                json.dumps(cfg_data, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+        except OSError:
+            pass
+        # Keep legacy nup_studio_settings.json in sync
         p = _settings_path()
         try:
             p.parent.mkdir(parents=True, exist_ok=True)

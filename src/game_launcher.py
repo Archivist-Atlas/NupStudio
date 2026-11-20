@@ -16,6 +16,7 @@ from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
+    QComboBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -109,6 +110,42 @@ QLineEdit {
 QLineEdit:focus {
     border-color: #e11d48;
 }
+QComboBox {
+    background-color: #090d14;
+    border: 1px solid #1e293b;
+    border-radius: 7px;
+    padding: 5px 28px 5px 10px;
+    color: #f1f5f9;
+    font-size: 12px;
+}
+QComboBox::drop-down {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 24px;
+    border-left: 1px solid #1e293b;
+    border-top-right-radius: 7px;
+    border-bottom-right-radius: 7px;
+    background-color: #0f1520;
+}
+QComboBox::down-arrow {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #94a3b8;
+}
+QComboBox:focus {
+    border-color: #e11d48;
+}
+QComboBox:focus::drop-down {
+    border-left-color: #e11d48;
+}
+QComboBox QAbstractItemView {
+    background-color: #0f1520;
+    color: #f1f5f9;
+    selection-background-color: #e11d48;
+    border: 1px solid #1e293b;
+}
 QMessageBox {
     background-color: #0f1520;
     color: #f1f5f9;
@@ -120,7 +157,288 @@ QMessageBox QLabel {
 """
 
 
-def diagnose_game_crash(output: str, exit_code: int) -> tuple[str, str]:
+SUPPORTED_LANGUAGES: list[tuple[str, str]] = [
+    ("fr", "Français"),
+    ("en", "English"),
+    ("it", "Italiano"),
+    ("pt", "Português"),
+    ("es", "Español"),
+    ("de", "Deutsch"),
+]
+
+
+def _language_config_path() -> Path:
+    if os.name == "nt":
+        base = os.environ.get("LOCALAPPDATA") or str(Path.home())
+        return Path(base) / "Switch2Recomp" / "language_config.json"
+    return Path.home() / ".local" / "share" / "switch2recomp" / "language_config.json"
+
+
+LAUNCHER_I18N: dict[str, dict[str, str]] = {
+    "fr": {
+        "win_title": "{game} — Options de lancement",
+        "subtitle": "Paramètres de lancement avant démarrage",
+        "rom_lbl": "Source du jeu (.nup ou dossier exefs/romfs)",
+        "rom_desc": "Le jeu lit ses ressources depuis ce fichier .nup ou ce dossier au démarrage.",
+        "rom_placeholder": "Aucun fichier .nup ou dossier trouvé — sélectionnez votre ROM…",
+        "btn_nup": "Fichier .nup…",
+        "btn_dir": "Dossier…",
+        "btn_reset": "Réinitialiser par défaut",
+        "btn_launch": "Démarrer le jeu",
+        "dlg_rom_title": "Sélectionner la ROM Switch 2 (.nup)",
+        "dlg_rom_filter": "Fichiers NUP (*.nup);;Tous les fichiers (*)",
+        "dlg_dir_title": "Sélectionner le dossier du jeu (contenant exefs / romfs)",
+        "err_missing_title": "Source manquante",
+        "err_missing_msg": "Veuillez sélectionner un fichier .nup valide ou un dossier contenant exefs/romfs avant de démarrer le jeu.",
+        "err_invalid_rom_title": "ROM invalide",
+        "err_invalid_rom_msg": "Le fichier sélectionné n'est pas un package .nup valide :\n{err}",
+        "err_wrong_rom_title": "Mauvaise ROM (.nup)",
+        "err_wrong_rom_msg": "Ce fichier .nup correspond au Title ID {found}, alors que ce jeu attend : {expected}.\n\nVeuillez sélectionner la ROM .nup correspondant au jeu.",
+        "err_invalid_dir_title": "Dossier invalide",
+        "err_invalid_dir_msg": "Le dossier sélectionné doit contenir un sous-dossier 'exefs' (avec 'main').",
+        "crash_vk_title": "Crash GPU Vulkan (VK_ERROR_DEVICE_LOST)",
+        "crash_vk_msg": "Le jeu s'est fermé à cause d'un timeout du pilote GPU Vulkan (vkQueueSubmit a renvoyé -4 / VK_ERROR_DEVICE_LOST).\n\nSolution recommandée :\n• Activez « Désactiver le culling meshlet (GPU) » (OOT_MESH_NOCULL)\n• Si le problème persiste, activez aussi « Accès mémoire GPU sécurisé » (OOT_ROBUST)",
+        "crash_main_title": "Fichier de jeu manquant (main.img)",
+        "crash_main_msg": "Le jeu n'a pas trouvé son image exécutable main.img.\nVérifiez que l'installation est complète et lancez le jeu via son raccourci.",
+        "crash_romfs_title": "Erreur de lecture du fichier .nup",
+        "crash_romfs_msg": "Impossible de lire les données RomFS depuis le fichier .nup sélectionné.\nVérifiez que le fichier .nup est valide et accessible.",
+        "crash_generic_title": "Le jeu s'est arrêté de manière inattendue",
+        "crash_generic_msg": "Le processus s'est terminé avec le code d'erreur {code}.",
+        "lang_scope_title": "Appliquer la langue",
+        "lang_scope_msg": "Voulez-vous appliquer cette langue à l'ensemble des jeux ou uniquement pour « {game} » ?",
+        "lang_scope_all": "Tous les jeux",
+        "lang_scope_game": "Ce jeu uniquement",
+        "lang_scope_cancel": "Annuler",
+    },
+    "en": {
+        "win_title": "{game} — Launch Options",
+        "subtitle": "Pre-launch configuration",
+        "rom_lbl": "Game source (.nup or exefs/romfs folder)",
+        "rom_desc": "The game reads its assets from this .nup file or folder on startup.",
+        "rom_placeholder": "No .nup file or folder found — select your ROM…",
+        "btn_nup": ".nup file…",
+        "btn_dir": "Folder…",
+        "btn_reset": "Reset to defaults",
+        "btn_launch": "Launch game",
+        "dlg_rom_title": "Select Switch 2 ROM (.nup)",
+        "dlg_rom_filter": "NUP Files (*.nup);;All Files (*)",
+        "dlg_dir_title": "Select game folder (containing exefs / romfs)",
+        "err_missing_title": "Missing source",
+        "err_missing_msg": "Please select a valid .nup file or a folder containing exefs/romfs before launching the game.",
+        "err_invalid_rom_title": "Invalid ROM",
+        "err_invalid_rom_msg": "The selected file is not a valid .nup package:\n{err}",
+        "err_wrong_rom_title": "Wrong ROM (.nup)",
+        "err_wrong_rom_msg": "This .nup file has Title ID {found}, while this game expects: {expected}.\n\nPlease select the matching .nup ROM.",
+        "err_invalid_dir_title": "Invalid folder",
+        "err_invalid_dir_msg": "The selected folder must contain an 'exefs' subfolder (with 'main').",
+        "crash_vk_title": "Vulkan GPU Crash (VK_ERROR_DEVICE_LOST)",
+        "crash_vk_msg": "The game closed due to a Vulkan GPU driver timeout (vkQueueSubmit returned -4 / VK_ERROR_DEVICE_LOST).\n\nRecommended solution:\n• Enable « Disable meshlet culling (GPU) » (OOT_MESH_NOCULL)\n• If it persists, also enable « Robust GPU buffer access » (OOT_ROBUST)",
+        "crash_main_title": "Missing game file (main.img)",
+        "crash_main_msg": "The game could not find its executable image main.img.\nVerify that the installation is complete and launch the game via its shortcut.",
+        "crash_romfs_title": "Error reading .nup file",
+        "crash_romfs_msg": "Unable to read RomFS data from the selected .nup file.\nVerify that the .nup file is valid and accessible.",
+        "crash_generic_title": "The game exited unexpectedly",
+        "crash_generic_msg": "The process exited with error code {code}.",
+        "lang_scope_title": "Apply language",
+        "lang_scope_msg": "Do you want to apply this language to all games or only to « {game} »?",
+        "lang_scope_all": "All games",
+        "lang_scope_game": "This game only",
+        "lang_scope_cancel": "Cancel",
+    },
+    "it": {
+        "win_title": "{game} — Opzioni di avvio",
+        "subtitle": "Parametri di pre-avvio",
+        "rom_lbl": "Origine del gioco (.nup o cartella exefs/romfs)",
+        "rom_desc": "Il gioco legge le proprie risorse da questo file .nup o cartella all'avvio.",
+        "rom_placeholder": "Nessun file .nup o cartella trovato — seleziona la ROM…",
+        "btn_nup": "File .nup…",
+        "btn_dir": "Cartella…",
+        "btn_reset": "Ripristina predefiniti",
+        "btn_launch": "Avvia il gioco",
+        "dlg_rom_title": "Seleziona ROM Switch 2 (.nup)",
+        "dlg_rom_filter": "File NUP (*.nup);;Tutti i file (*)",
+        "dlg_dir_title": "Seleziona cartella del gioco (con exefs / romfs)",
+        "err_missing_title": "Origine mancante",
+        "err_missing_msg": "Seleziona un file .nup valido o una cartella contenente exefs/romfs prima di avviare il gioco.",
+        "err_invalid_rom_title": "ROM non valida",
+        "err_invalid_rom_msg": "Il file selezionato non è un pacchetto .nup valido:\n{err}",
+        "err_wrong_rom_title": "ROM errata (.nup)",
+        "err_wrong_rom_msg": "Questo file .nup corrisponde al Title ID {found}, mentre questo gioco richiede: {expected}.\n\nSeleziona la ROM .nup corrispondente.",
+        "err_invalid_dir_title": "Cartella non valida",
+        "err_invalid_dir_msg": "La cartella selezionata deve contenere una sottocartella 'exefs' (con 'main').",
+        "crash_vk_title": "Crash GPU Vulkan (VK_ERROR_DEVICE_LOST)",
+        "crash_vk_msg": "Il gioco si è chiuso per un timeout del driver GPU Vulkan (vkQueueSubmit ha restituito -4 / VK_ERROR_DEVICE_LOST).\n\nSoluzione consigliata:\n• Attiva « Disattiva meshlet culling (GPU) » (OOT_MESH_NOCULL)\n• Se persiste, attiva anche « Accesso sicuro memoria GPU » (OOT_ROBUST)",
+        "crash_main_title": "File di gioco mancante (main.img)",
+        "crash_main_msg": "Il gioco non ha trovato l'immagine eseguibile main.img.\nVerifica che l'installazione sia completa e avvia il gioco dal collegamento.",
+        "crash_romfs_title": "Errore di lettura del file .nup",
+        "crash_romfs_msg": "Impossibile leggere i dati RomFS dal file .nup selezionato.\nVerifica che il file .nup sia valido e accessibile.",
+        "crash_generic_title": "Il gioco si è chiuso in modo imprevisto",
+        "crash_generic_msg": "Il processo è terminato con codice di errore {code}.",
+        "lang_scope_title": "Applica lingua",
+        "lang_scope_msg": "Vuoi applicare questa lingua a tutti i giochi o solo a « {game} »?",
+        "lang_scope_all": "Tutti i giochi",
+        "lang_scope_game": "Solo questo gioco",
+        "lang_scope_cancel": "Annulla",
+    },
+    "pt": {
+        "win_title": "{game} — Opções de inicialização",
+        "subtitle": "Parâmetros de pré-inicialização",
+        "rom_lbl": "Origem do jogo (.nup ou pasta exefs/romfs)",
+        "rom_desc": "O jogo lê seus recursos deste arquivo .nup ou pasta ao iniciar.",
+        "rom_placeholder": "Nenhum arquivo .nup ou pasta encontrado — selecione sua ROM…",
+        "btn_nup": "Arquivo .nup…",
+        "btn_dir": "Pasta…",
+        "btn_reset": "Restaurar padrões",
+        "btn_launch": "Iniciar jogo",
+        "dlg_rom_title": "Selecionar ROM Switch 2 (.nup)",
+        "dlg_rom_filter": "Arquivos NUP (*.nup);;Todos os arquivos (*)",
+        "dlg_dir_title": "Selecionar pasta do jogo (contendo exefs / romfs)",
+        "err_missing_title": "Origem ausente",
+        "err_missing_msg": "Selecione um arquivo .nup válido ou uma pasta contendo exefs/romfs antes de iniciar o jogo.",
+        "err_invalid_rom_title": "ROM inválida",
+        "err_invalid_rom_msg": "O arquivo selecionado não é um pacote .nup válido:\n{err}",
+        "err_wrong_rom_title": "ROM incorreta (.nup)",
+        "err_wrong_rom_msg": "Este arquivo .nup tem Title ID {found}, enquanto este jogo espera: {expected}.\n\nSelecione a ROM .nup correspondente.",
+        "err_invalid_dir_title": "Pasta inválida",
+        "err_invalid_dir_msg": "A pasta selecionada deve conter uma subpasta 'exefs' (com 'main').",
+        "crash_vk_title": "Falha de GPU Vulkan (VK_ERROR_DEVICE_LOST)",
+        "crash_vk_msg": "O jogo fechou devido a um timeout do driver GPU Vulkan (vkQueueSubmit retornou -4 / VK_ERROR_DEVICE_LOST).\n\nSolução recomendada:\n• Ative « Desativar meshlet culling (GPU) » (OOT_MESH_NOCULL)\n• Se persistir, ative também « Acesso seguro à memória GPU » (OOT_ROBUST)",
+        "crash_main_title": "Arquivo de jogo ausente (main.img)",
+        "crash_main_msg": "O jogo não encontrou a imagem executável main.img.\nVerifique se a instalação está completa e inicie pelo atalho.",
+        "crash_romfs_title": "Erro ao ler arquivo .nup",
+        "crash_romfs_msg": "Não foi possível ler os dados RomFS do arquivo .nup selecionado.\nVerifique se o arquivo .nup é válido e acessível.",
+        "crash_generic_title": "O jogo encerrou inesperadamente",
+        "crash_generic_msg": "O processo foi encerrado com o código de erro {code}.",
+        "lang_scope_title": "Aplicar idioma",
+        "lang_scope_msg": "Deseja aplicar este idioma a todos os jogos ou apenas a « {game} »?",
+        "lang_scope_all": "Todos os jogos",
+        "lang_scope_game": "Apenas este jogo",
+        "lang_scope_cancel": "Cancelar",
+    },
+    "es": {
+        "win_title": "{game} — Opciones de inicio",
+        "subtitle": "Parámetros previos al inicio",
+        "rom_lbl": "Origen del juego (.nup o carpeta exefs/romfs)",
+        "rom_desc": "El juego lee sus recursos desde este archivo .nup o carpeta al iniciar.",
+        "rom_placeholder": "No se encontró archivo .nup ni carpeta — selecciona tu ROM…",
+        "btn_nup": "Archivo .nup…",
+        "btn_dir": "Carpeta…",
+        "btn_reset": "Restablecer valores",
+        "btn_launch": "Iniciar juego",
+        "dlg_rom_title": "Seleccionar ROM Switch 2 (.nup)",
+        "dlg_rom_filter": "Archivos NUP (*.nup);;Todos los archivos (*)",
+        "dlg_dir_title": "Seleccionar carpeta del juego (con exefs / romfs)",
+        "err_missing_title": "Origen faltante",
+        "err_missing_msg": "Selecciona un archivo .nup válido o una carpeta que contenga exefs/romfs antes de iniciar el juego.",
+        "err_invalid_rom_title": "ROM no válida",
+        "err_invalid_rom_msg": "El archivo seleccionado no es un paquete .nup válido:\n{err}",
+        "err_wrong_rom_title": "ROM incorrecta (.nup)",
+        "err_wrong_rom_msg": "Este archivo .nup tiene Title ID {found}, mientras que este juego espera: {expected}.\n\nSelecciona la ROM .nup correspondiente.",
+        "err_invalid_dir_title": "Carpeta no válida",
+        "err_invalid_dir_msg": "La carpeta seleccionada debe contener una subcarpeta 'exefs' (con 'main').",
+        "crash_vk_title": "Error de GPU Vulkan (VK_ERROR_DEVICE_LOST)",
+        "crash_vk_msg": "El juego se cerró por un tiempo de espera del controlador GPU Vulkan (vkQueueSubmit devolvió -4 / VK_ERROR_DEVICE_LOST).\n\nSolución recomendada:\n• Activa « Desactivar meshlet culling (GPU) » (OOT_MESH_NOCULL)\n• Si persiste, activa también « Acceso seguro a memoria GPU » (OOT_ROBUST)",
+        "crash_main_title": "Falta archivo del juego (main.img)",
+        "crash_main_msg": "El juego no encontró su imagen ejecutable main.img.\nVerifica que la instalación esté completa e inicia desde su acceso directo.",
+        "crash_romfs_title": "Error al leer archivo .nup",
+        "crash_romfs_msg": "No se pudieron leer los datos RomFS del archivo .nup seleccionado.\nVerifica que el archivo .nup sea válido y accesible.",
+        "crash_generic_title": "El juego se cerró inesperadamente",
+        "crash_generic_msg": "El proceso finalizó con el código de error {code}.",
+        "lang_scope_title": "Aplicar idioma",
+        "lang_scope_msg": "¿Quieres aplicar este idioma a todos los juegos o solo a « {game} »?",
+        "lang_scope_all": "Todos los juegos",
+        "lang_scope_game": "Solo este juego",
+        "lang_scope_cancel": "Cancelar",
+    },
+    "de": {
+        "win_title": "{game} — Startoptionen",
+        "subtitle": "Startkonfiguration vor dem Spielstart",
+        "rom_lbl": "Spielquelle (.nup oder exefs/romfs-Ordner)",
+        "rom_desc": "Das Spiel lädt seine Ressourcen beim Start aus dieser .nup-Datei oder diesem Ordner.",
+        "rom_placeholder": "Keine .nup-Datei oder Ordner gefunden — ROM auswählen…",
+        "btn_nup": ".nup-Datei…",
+        "btn_dir": "Ordner…",
+        "btn_reset": "Standardwerte wiederherstellen",
+        "btn_launch": "Spiel starten",
+        "dlg_rom_title": "Switch 2 ROM (.nup) auswählen",
+        "dlg_rom_filter": "NUP-Dateien (*.nup);;Alle Dateien (*)",
+        "dlg_dir_title": "Spielordner auswählen (mit exefs / romfs)",
+        "err_missing_title": "Quelle fehlt",
+        "err_missing_msg": "Bitte wähle eine gültige .nup-Datei oder einen Ordner mit exefs/romfs aus, bevor du das Spiel startest.",
+        "err_invalid_rom_title": "Ungültige ROM",
+        "err_invalid_rom_msg": "Die ausgewählte Datei ist kein gültiges .nup-Paket:\n{err}",
+        "err_wrong_rom_title": "Falsche ROM (.nup)",
+        "err_wrong_rom_msg": "Diese .nup-Datei hat die Title ID {found}, dieses Spiel erwartet jedoch: {expected}.\n\nBitte wähle die passende .nup-ROM aus.",
+        "err_invalid_dir_title": "Ungültiger Ordner",
+        "err_invalid_dir_msg": "Der ausgewählte Ordner muss einen Unterordner 'exefs' (mit 'main') enthalten.",
+        "crash_vk_title": "Vulkan-GPU-Absturz (VK_ERROR_DEVICE_LOST)",
+        "crash_vk_msg": "Das Spiel wurde wegen eines Vulkan-GPU-Treiber-Timeouts beendet (vkQueueSubmit gab -4 / VK_ERROR_DEVICE_LOST zurück).\n\nEmpfohlene Lösung:\n• Aktiviere « Meshlet-Culling deaktivieren (GPU) » (OOT_MESH_NOCULL)\n• Falls es weiterhin auftritt, aktiviere auch « Sicherer GPU-Speicherzugriff » (OOT_ROBUST)",
+        "crash_main_title": "Spieldatei fehlt (main.img)",
+        "crash_main_msg": "Das Spiel konnte sein ausführbares Image main.img nicht finden.\nPrüfe, ob die Installation vollständig ist, und starte das Spiel über die Verknüpfung.",
+        "crash_romfs_title": "Fehler beim Lesen der .nup-Datei",
+        "crash_romfs_msg": "RomFS-Daten konnten nicht aus der ausgewählten .nup-Datei gelesen werden.\nPrüfe, ob die .nup-Datei gültig und zugänglich ist.",
+        "crash_generic_title": "Das Spiel wurde unerwartet beendet",
+        "crash_generic_msg": "Der Prozess wurde mit Fehlercode {code} beendet.",
+        "lang_scope_title": "Sprache anwenden",
+        "lang_scope_msg": "Möchtest du diese Sprache auf alle Spiele oder nur auf « {game} » anwenden?",
+        "lang_scope_all": "Alle Spiele",
+        "lang_scope_game": "Nur dieses Spiel",
+        "lang_scope_cancel": "Abbrechen",
+    },
+}
+
+
+CATEGORY_I18N: dict[str, dict[str, str]] = {
+    "Affichage & Audio": {
+        "en": "Display & Audio",
+        "it": "Schermo & Audio",
+        "pt": "Vídeo & Áudio",
+        "es": "Pantalla y Audio",
+        "de": "Anzeige & Audio",
+    },
+    "Rendu & Shaders": {
+        "en": "Rendering & Shaders",
+        "it": "Rendering & Shader",
+        "pt": "Renderização & Shaders",
+        "es": "Renderizado y Shaders",
+        "de": "Rendering & Shader",
+    },
+    "Mémoire GPU": {
+        "en": "GPU Memory",
+        "it": "Memoria GPU",
+        "pt": "Memória GPU",
+        "es": "Memoria GPU",
+        "de": "GPU-Speicher",
+    },
+    "Gameplay & Hacks": {
+        "en": "Gameplay & Hacks",
+        "it": "Gameplay & Hack",
+        "pt": "Gameplay & Hacks",
+        "es": "Jugabilidad y Hacks",
+        "de": "Gameplay & Hacks",
+    },
+    "Général": {
+        "en": "General",
+        "it": "Generale",
+        "pt": "Geral",
+        "es": "General",
+        "de": "Allgemein",
+    },
+}
+
+
+def _tr_lang(lang: str, key: str, **kwargs: Any) -> str:
+    strings = LAUNCHER_I18N.get(lang) or LAUNCHER_I18N["fr"]
+    text = strings.get(key) or LAUNCHER_I18N["fr"].get(key) or key
+    if kwargs:
+        try:
+            return text.format(**kwargs)
+        except Exception:
+            return text
+    return text
+
+
+def diagnose_game_crash(output: str, exit_code: int, lang: str = "fr") -> tuple[str, str]:
     """Inspect game stdout/stderr to provide an actionable crash diagnosis."""
     low = output.lower()
     if (
@@ -129,28 +447,22 @@ def diagnose_game_crash(output: str, exit_code: int) -> tuple[str, str]:
         or "gpu fault" in low
     ):
         return (
-            "Crash GPU Vulkan (VK_ERROR_DEVICE_LOST)",
-            "Le jeu s'est fermé à cause d'un timeout du pilote GPU Vulkan "
-            "(vkQueueSubmit a renvoyé -4 / VK_ERROR_DEVICE_LOST).\n\n"
-            "Solution recommandée :\n"
-            "• Activez « Désactiver le culling meshlet (GPU) » (OOT_MESH_NOCULL)\n"
-            "• Si le problème persiste, activez aussi « Accès mémoire GPU sécurisé » (OOT_ROBUST)",
+            _tr_lang(lang, "crash_vk_title"),
+            _tr_lang(lang, "crash_vk_msg"),
         )
     if "missing" in low and "main.img" in low:
         return (
-            "Fichier de jeu manquant (main.img)",
-            "Le jeu n'a pas trouvé son image exécutable main.img.\n"
-            "Vérifiez que l'installation est complète et lancez le jeu via son raccourci.",
+            _tr_lang(lang, "crash_main_title"),
+            _tr_lang(lang, "crash_main_msg"),
         )
     if "romfs" in low and ("fail" in low or "error" in low or "missing" in low):
         return (
-            "Erreur de lecture du fichier .nup",
-            "Impossible de lire les données RomFS depuis le fichier .nup sélectionné.\n"
-            "Vérifiez que le fichier .nup est valide et accessible.",
+            _tr_lang(lang, "crash_romfs_title"),
+            _tr_lang(lang, "crash_romfs_msg"),
         )
     return (
-        "Le jeu s'est arrêté de manière inattendue",
-        f"Le processus s'est terminé avec le code d'erreur {exit_code}.",
+        _tr_lang(lang, "crash_generic_title"),
+        _tr_lang(lang, "crash_generic_msg", code=exit_code),
     )
 
 
@@ -201,9 +513,15 @@ class GameLauncherWindow(QMainWindow):
         self.rom_env_var = self._detect_rom_env_var()
         self.rom_input: Optional[QLineEdit] = None
         self._monitor: Optional[_GameProcessMonitor] = None
+        self._game_key = str(
+            self.config.get("game_id")
+            or self.config.get("game_name")
+            or self.base_dir.name
+        )
+        self._lang = self._load_initial_language()
+        self._cat_labels: list[tuple[QLabel, str, dict[str, str]]] = []
+        self._opt_labels: list[tuple[QLabel, QLabel, dict[str, Any]]] = []
 
-        game_name = self.config.get("game_name", "Switch 2 Game")
-        self.setWindowTitle(f"{game_name} — Options de lancement")
         self.resize(680, 660)
         self.setMinimumSize(560, 520)
         self.setStyleSheet(STYLESHEET)
@@ -215,6 +533,87 @@ class GameLauncherWindow(QMainWindow):
                 self.setWindowIcon(QIcon(str(icon_file)))
 
         self._build_ui()
+        self._apply_translations()
+
+    def _tr(self, key: str, **kwargs: Any) -> str:
+        return _tr_lang(self._lang, key, **kwargs)
+
+    def _load_initial_language(self) -> str:
+        valid = {code for code, _ in SUPPORTED_LANGUAGES}
+        p = _language_config_path()
+        if p.is_file():
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    games = data.get("games")
+                    if isinstance(games, dict):
+                        game_lang = str(games.get(self._game_key) or "").lower()
+                        if game_lang in valid:
+                            return game_lang
+                    def_lang = str(data.get("language_default") or "").lower()
+                    if def_lang in valid:
+                        return def_lang
+            except (OSError, ValueError):
+                pass
+        return "fr"
+
+    def _save_language_choice(self, new_lang: str, apply_all: bool) -> None:
+        p = _language_config_path()
+        data: dict[str, Any] = {"language_default": "fr", "games": {}}
+        if p.is_file():
+            try:
+                loaded = json.loads(p.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    data = loaded
+            except (OSError, ValueError):
+                pass
+        if not isinstance(data.get("games"), dict):
+            data["games"] = {}
+        if apply_all:
+            data["language_default"] = new_lang
+            data["games"].pop(self._game_key, None)
+        else:
+            if not data.get("language_default"):
+                data["language_default"] = self._lang
+            data["games"][self._game_key] = new_lang
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass
+
+    def _on_language_changed(self, _index: int) -> None:
+        new_lang = str(self.lang_combo.currentData() or "fr")
+        if new_lang == self._lang:
+            return
+        game_name = self.config.get("game_name", self._game_key)
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setWindowTitle(_tr_lang(new_lang, "lang_scope_title"))
+        box.setText(_tr_lang(new_lang, "lang_scope_msg", game=game_name))
+        btn_all = box.addButton(
+            _tr_lang(new_lang, "lang_scope_all"), QMessageBox.ButtonRole.AcceptRole
+        )
+        btn_game = box.addButton(
+            _tr_lang(new_lang, "lang_scope_game"), QMessageBox.ButtonRole.ActionRole
+        )
+        btn_cancel = box.addButton(
+            _tr_lang(new_lang, "lang_scope_cancel"), QMessageBox.ButtonRole.RejectRole
+        )
+        box.setDefaultButton(btn_all)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked == btn_cancel or clicked is None:
+            self.lang_combo.blockSignals(True)
+            idx = self.lang_combo.findData(self._lang)
+            if idx >= 0:
+                self.lang_combo.setCurrentIndex(idx)
+            self.lang_combo.blockSignals(False)
+            return
+        apply_all = clicked == btn_all
+        self._save_language_choice(new_lang, apply_all=apply_all)
+        self._lang = new_lang
+        self._apply_translations()
 
     def _detect_rom_env_var(self) -> str:
         env_var = str(self.config.get("rom_env_var") or "").strip()
@@ -356,12 +755,21 @@ class GameLauncherWindow(QMainWindow):
                 "padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600;"
             )
             sub_row.addWidget(ver_badge)
-        subtitle = QLabel("Paramètres de lancement avant démarrage")
-        subtitle.setStyleSheet("color: #94a3b8; font-size: 12px;")
-        sub_row.addWidget(subtitle)
+        self.subtitle_lbl = QLabel("Paramètres de lancement avant démarrage")
+        self.subtitle_lbl.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        sub_row.addWidget(self.subtitle_lbl)
         sub_row.addStretch()
         title_col.addLayout(sub_row)
         header.addLayout(title_col, stretch=1)
+
+        self.lang_combo = QComboBox()
+        for code, label in SUPPORTED_LANGUAGES:
+            self.lang_combo.addItem(label, code)
+        idx = self.lang_combo.findData(self._lang)
+        if idx >= 0:
+            self.lang_combo.setCurrentIndex(idx)
+        self.lang_combo.currentIndexChanged.connect(self._on_language_changed)
+        header.addWidget(self.lang_combo, alignment=Qt.AlignmentFlag.AlignTop)
         root.addLayout(header)
 
         if self.rom_env_var:
@@ -371,15 +779,15 @@ class GameLauncherWindow(QMainWindow):
             rom_layout.setContentsMargins(14, 12, 14, 12)
             rom_layout.setSpacing(6)
 
-            rom_lbl = QLabel("Source du jeu (.nup ou dossier exefs/romfs)")
-            rom_lbl.setStyleSheet("font-weight: 600; color: #f8fafc; font-size: 13px;")
-            rom_desc = QLabel(
+            self.rom_lbl = QLabel("Source du jeu (.nup ou dossier exefs/romfs)")
+            self.rom_lbl.setStyleSheet("font-weight: 600; color: #f8fafc; font-size: 13px;")
+            self.rom_desc = QLabel(
                 "Le jeu lit ses ressources depuis ce fichier .nup ou ce dossier au démarrage."
             )
-            rom_desc.setWordWrap(True)
-            rom_desc.setStyleSheet("color: #94a3b8; font-size: 12px;")
-            rom_layout.addWidget(rom_lbl)
-            rom_layout.addWidget(rom_desc)
+            self.rom_desc.setWordWrap(True)
+            self.rom_desc.setStyleSheet("color: #94a3b8; font-size: 12px;")
+            rom_layout.addWidget(self.rom_lbl)
+            rom_layout.addWidget(self.rom_desc)
 
             rom_row = QHBoxLayout()
             rom_row.setSpacing(8)
@@ -388,16 +796,21 @@ class GameLauncherWindow(QMainWindow):
                 "Aucun fichier .nup ou dossier trouvé — sélectionnez votre ROM…"
             )
             self.rom_input.setText(self._resolve_initial_rom_path())
-            btn_browse_rom = QPushButton("Fichier .nup…")
-            btn_browse_rom.clicked.connect(self._browse_rom)
-            btn_browse_dir = QPushButton("Dossier…")
-            btn_browse_dir.clicked.connect(self._browse_rom_dir)
+            self.btn_browse_rom = QPushButton("Fichier .nup…")
+            self.btn_browse_rom.clicked.connect(self._browse_rom)
+            self.btn_browse_dir = QPushButton("Dossier…")
+            self.btn_browse_dir.clicked.connect(self._browse_rom_dir)
             rom_row.addWidget(self.rom_input, stretch=1)
-            rom_row.addWidget(btn_browse_rom)
-            rom_row.addWidget(btn_browse_dir)
+            rom_row.addWidget(self.btn_browse_rom)
+            rom_row.addWidget(self.btn_browse_dir)
             rom_layout.addLayout(rom_row)
 
             root.addWidget(rom_card)
+        else:
+            self.rom_lbl = None
+            self.rom_desc = None
+            self.btn_browse_rom = None
+            self.btn_browse_dir = None
 
         # Scrollable options list
         scroll = QScrollArea()
@@ -418,6 +831,9 @@ class GameLauncherWindow(QMainWindow):
                     "color: #94a3b8; font-size: 12px; font-weight: 700; "
                     "text-transform: uppercase; padding-top: 6px;"
                 )
+                self._cat_labels.append(
+                    (cat_lbl, cat, opt.get("category_i18n") or {})
+                )
                 scroll_layout.addWidget(cat_lbl)
 
             card = QFrame()
@@ -437,6 +853,7 @@ class GameLauncherWindow(QMainWindow):
             text_col.addWidget(name_lbl)
             text_col.addWidget(desc_lbl)
             card_layout.addLayout(text_col, stretch=1)
+            self._opt_labels.append((name_lbl, desc_lbl, opt))
 
             right_col = QHBoxLayout()
             right_col.setSpacing(8)
@@ -469,16 +886,45 @@ class GameLauncherWindow(QMainWindow):
         # Footer buttons
         footer = QHBoxLayout()
         footer.setSpacing(10)
-        btn_reset = QPushButton("Réinitialiser par défaut")
-        btn_reset.clicked.connect(self._reset_defaults)
-        btn_launch = QPushButton("Démarrer le jeu")
-        btn_launch.setObjectName("LaunchBtn")
-        btn_launch.clicked.connect(self._launch_game)
+        self.btn_reset = QPushButton("Réinitialiser par défaut")
+        self.btn_reset.clicked.connect(self._reset_defaults)
+        self.btn_launch = QPushButton("Démarrer le jeu")
+        self.btn_launch.setObjectName("LaunchBtn")
+        self.btn_launch.clicked.connect(self._launch_game)
 
-        footer.addWidget(btn_reset)
+        footer.addWidget(self.btn_reset)
         footer.addStretch()
-        footer.addWidget(btn_launch)
+        footer.addWidget(self.btn_launch)
         root.addLayout(footer)
+
+    def _apply_translations(self) -> None:
+        game_name = self.config.get("game_name", "Switch 2 Game")
+        self.setWindowTitle(self._tr("win_title", game=game_name))
+        self.subtitle_lbl.setText(self._tr("subtitle"))
+        if self.rom_lbl is not None:
+            self.rom_lbl.setText(self._tr("rom_lbl"))
+        if self.rom_desc is not None:
+            self.rom_desc.setText(self._tr("rom_desc"))
+        if self.rom_input is not None:
+            self.rom_input.setPlaceholderText(self._tr("rom_placeholder"))
+        if self.btn_browse_rom is not None:
+            self.btn_browse_rom.setText(self._tr("btn_nup"))
+        if self.btn_browse_dir is not None:
+            self.btn_browse_dir.setText(self._tr("btn_dir"))
+        self.btn_reset.setText(self._tr("btn_reset"))
+        self.btn_launch.setText(self._tr("btn_launch"))
+        for cat_lbl, default_cat, cat_i18n in self._cat_labels:
+            translated = (
+                cat_i18n.get(self._lang)
+                or CATEGORY_I18N.get(default_cat, {}).get(self._lang)
+                or default_cat
+            )
+            cat_lbl.setText(translated)
+        for name_lbl, desc_lbl, opt in self._opt_labels:
+            lbl_i18n = opt.get("label_i18n") or {}
+            desc_i18n = opt.get("description_i18n") or {}
+            name_lbl.setText(lbl_i18n.get(self._lang) or opt.get("label", ""))
+            desc_lbl.setText(desc_i18n.get(self._lang) or opt.get("description", ""))
 
     @staticmethod
     def _update_state_label(lbl: QLabel, checked: bool) -> None:
@@ -499,9 +945,9 @@ class GameLauncherWindow(QMainWindow):
             start_dir = str(Path(self.rom_input.text().strip()).parent)
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Sélectionner la ROM Switch 2 (.nup)",
+            self._tr("dlg_rom_title"),
             start_dir,
-            "Fichiers NUP (*.nup);;Tous les fichiers (*)",
+            self._tr("dlg_rom_filter"),
         )
         if path and self.rom_input is not None:
             self.rom_input.setText(path)
@@ -513,7 +959,7 @@ class GameLauncherWindow(QMainWindow):
         )
         path = QFileDialog.getExistingDirectory(
             self,
-            "Sélectionner le dossier du jeu (contenant exefs / romfs)",
+            self._tr("dlg_dir_title"),
             start_dir,
         )
         if path and self.rom_input is not None:
@@ -528,8 +974,8 @@ class GameLauncherWindow(QMainWindow):
             if not rom_path or (not p.is_file() and not p.is_dir()):
                 QMessageBox.warning(
                     self,
-                    "Source manquante",
-                    "Veuillez sélectionner un fichier .nup valide ou un dossier contenant exefs/romfs avant de démarrer le jeu.",
+                    self._tr("err_missing_title"),
+                    self._tr("err_missing_msg"),
                 )
                 return
             if p.is_file():
@@ -538,8 +984,8 @@ class GameLauncherWindow(QMainWindow):
                 except NupParseError as exc:
                     QMessageBox.warning(
                         self,
-                        "ROM invalide",
-                        f"Le fichier sélectionné n'est pas un package .nup valide :\n{exc}",
+                        self._tr("err_invalid_rom_title"),
+                        self._tr("err_invalid_rom_msg", err=exc),
                     )
                     return
                 expected_ids = {
@@ -558,10 +1004,12 @@ class GameLauncherWindow(QMainWindow):
                     if not (expanded_found & expected_ids):
                         QMessageBox.warning(
                             self,
-                            "Mauvaise ROM (.nup)",
-                            f"Ce fichier .nup correspond au Title ID {nup_info.title_id}, "
-                            f"alors que ce jeu attend : {', '.join(sorted(expected_ids))}.\n\n"
-                            "Veuillez sélectionner la ROM .nup correspondant au jeu.",
+                            self._tr("err_wrong_rom_title"),
+                            self._tr(
+                                "err_wrong_rom_msg",
+                                found=nup_info.title_id,
+                                expected=", ".join(sorted(expected_ids)),
+                            ),
                         )
                         return
                 resolved_rom_arg = rom_path
@@ -573,8 +1021,8 @@ class GameLauncherWindow(QMainWindow):
                 else:
                     QMessageBox.warning(
                         self,
-                        "Dossier invalide",
-                        "Le dossier sélectionné doit contenir un sous-dossier 'exefs' (avec 'main').",
+                        self._tr("err_invalid_dir_title"),
+                        self._tr("err_invalid_dir_msg"),
                     )
                     return
                 if (p / "romfs").is_dir():
@@ -638,7 +1086,7 @@ class GameLauncherWindow(QMainWindow):
         self.show()
         self.raise_()
         self.activateWindow()
-        title, advice = diagnose_game_crash(output, exit_code)
+        title, advice = diagnose_game_crash(output, exit_code, self._lang)
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Warning)
         box.setWindowTitle(title)

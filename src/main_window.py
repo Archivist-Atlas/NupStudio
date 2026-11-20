@@ -1150,6 +1150,7 @@ class MainWindow(QMainWindow):
             rom_path,
             out_dir,
             create_desktop_shortcut=self.chk_desktop_shortcut.isChecked(),
+            language=self.i18n.language,
             parent=self,
         )
         self.worker.log_line.connect(self._on_compile_log)
@@ -1550,6 +1551,7 @@ class MainWindow(QMainWindow):
             "QPushButton { background-color: #065f46; border: 1px solid #10b981; color: #ecfdf5; "
             "padding: 2px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; }"
         )
+        QTimer.singleShot(0, lambda: self._prompt_and_apply_update(info))
 
     def _on_click_app_update(self) -> None:
         if (

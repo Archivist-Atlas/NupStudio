@@ -58,6 +58,7 @@ class RecompileWorker(QThread):
         rom_path: Path,
         output_dir: Path,
         create_desktop_shortcut: bool = True,
+        language: str = "fr",
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -65,6 +66,7 @@ class RecompileWorker(QThread):
         self.rom_path = rom_path
         self.output_dir = output_dir
         self.create_desktop_shortcut = create_desktop_shortcut
+        self.language = language or "fr"
         self._process: Optional[subprocess.Popen[bytes]] = None
         self._cancelled = False
         self._lock = threading.Lock()
@@ -176,9 +178,12 @@ class RecompileWorker(QThread):
             target=self._emit_partial_if_idle, args=(stop_event,), daemon=True
         )
         try:
+            env = dict(os.environ)
+            env["NUP_STUDIO_LANG"] = self.language
             self._process = subprocess.Popen(
                 cmd,
                 cwd=str(cwd),
+                env=env,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
