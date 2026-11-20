@@ -246,7 +246,11 @@ class GameLauncherWindow(QMainWindow):
                 pass
         for cand in candidates:
             p = Path(cand)
-            if cand and p.is_file():
+            if not cand:
+                continue
+            if p.is_file():
+                return str(p)
+            if p.is_dir() and ((p / "exefs").is_dir() or (p / "main").is_file()):
                 return str(p)
         return ""
 
@@ -367,10 +371,10 @@ class GameLauncherWindow(QMainWindow):
             rom_layout.setContentsMargins(14, 12, 14, 12)
             rom_layout.setSpacing(6)
 
-            rom_lbl = QLabel("Fichier ROM (.nup)")
+            rom_lbl = QLabel("Source du jeu (.nup ou dossier exefs/romfs)")
             rom_lbl.setStyleSheet("font-weight: 600; color: #f8fafc; font-size: 13px;")
             rom_desc = QLabel(
-                "Le jeu lit ses ressources directement depuis ce fichier .nup au démarrage."
+                "Le jeu lit ses ressources depuis ce fichier .nup ou ce dossier au démarrage."
             )
             rom_desc.setWordWrap(True)
             rom_desc.setStyleSheet("color: #94a3b8; font-size: 12px;")
@@ -381,13 +385,16 @@ class GameLauncherWindow(QMainWindow):
             rom_row.setSpacing(8)
             self.rom_input = QLineEdit()
             self.rom_input.setPlaceholderText(
-                "Aucun fichier .nup trouvé — sélectionnez votre ROM…"
+                "Aucun fichier .nup ou dossier trouvé — sélectionnez votre ROM…"
             )
             self.rom_input.setText(self._resolve_initial_rom_path())
-            btn_browse_rom = QPushButton("Parcourir…")
+            btn_browse_rom = QPushButton("Fichier .nup…")
             btn_browse_rom.clicked.connect(self._browse_rom)
+            btn_browse_dir = QPushButton("Dossier…")
+            btn_browse_dir.clicked.connect(self._browse_rom_dir)
             rom_row.addWidget(self.rom_input, stretch=1)
             rom_row.addWidget(btn_browse_rom)
+            rom_row.addWidget(btn_browse_dir)
             rom_layout.addLayout(rom_row)
 
             root.addWidget(rom_card)
@@ -499,47 +506,79 @@ class GameLauncherWindow(QMainWindow):
         if path and self.rom_input is not None:
             self.rom_input.setText(path)
 
+    def _browse_rom_dir(self) -> None:
+        current = self.rom_input.text().strip() if self.rom_input else ""
+        start_dir = str(Path(current)) if current and Path(current).is_dir() else (
+            str(Path(current).parent) if current and Path(current).parent.is_dir() else str(self.base_dir)
+        )
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "Sélectionner le dossier du jeu (contenant exefs / romfs)",
+            start_dir,
+        )
+        if path and self.rom_input is not None:
+            self.rom_input.setText(path)
+
     def _launch_game(self) -> None:
+        resolved_rom_arg: Optional[str] = None
+        resolved_romfs_dir: Optional[str] = None
         if self.rom_env_var and self.rom_input is not None:
             rom_path = self.rom_input.text().strip()
-            if not rom_path or not Path(rom_path).is_file():
+            p = Path(rom_path) if rom_path else Path()
+            if not rom_path or (not p.is_file() and not p.is_dir()):
                 QMessageBox.warning(
                     self,
-                    "ROM manquante",
-                    "Veuillez sélectionner un fichier .nup valide avant de démarrer le jeu.",
+                    "Source manquante",
+                    "Veuillez sélectionner un fichier .nup valide ou un dossier contenant exefs/romfs avant de démarrer le jeu.",
                 )
                 return
-            try:
-                nup_info = parse_nup(rom_path)
-            except NupParseError as exc:
-                QMessageBox.warning(
-                    self,
-                    "ROM invalide",
-                    f"Le fichier sélectionné n'est pas un package .nup valide :\n{exc}",
-                )
-                return
-            expected_ids = {
-                str(tid).upper()
-                for tid in (self.config.get("expected_title_ids") or [])
-                if tid
-            }
-            if expected_ids:
-                found_ids = {nup_info.title_id.upper()}
-                for pkg in nup_info.all_packages:
-                    found_ids.add(pkg.title_id.upper())
-                expanded_found = set(found_ids)
-                for tid in found_ids:
-                    if tid.endswith("800"):
-                        expanded_found.add(tid[:-3] + "000")
-                if not (expanded_found & expected_ids):
+            if p.is_file():
+                try:
+                    nup_info = parse_nup(rom_path)
+                except NupParseError as exc:
                     QMessageBox.warning(
                         self,
-                        "Mauvaise ROM (.nup)",
-                        f"Ce fichier .nup correspond au Title ID {nup_info.title_id}, "
-                        f"alors que ce jeu attend : {', '.join(sorted(expected_ids))}.\n\n"
-                        "Veuillez sélectionner la ROM .nup correspondant au jeu.",
+                        "ROM invalide",
+                        f"Le fichier sélectionné n'est pas un package .nup valide :\n{exc}",
                     )
                     return
+                expected_ids = {
+                    str(tid).upper()
+                    for tid in (self.config.get("expected_title_ids") or [])
+                    if tid
+                }
+                if expected_ids:
+                    found_ids = {nup_info.title_id.upper()}
+                    for pkg in nup_info.all_packages:
+                        found_ids.add(pkg.title_id.upper())
+                    expanded_found = set(found_ids)
+                    for tid in found_ids:
+                        if tid.endswith("800"):
+                            expanded_found.add(tid[:-3] + "000")
+                    if not (expanded_found & expected_ids):
+                        QMessageBox.warning(
+                            self,
+                            "Mauvaise ROM (.nup)",
+                            f"Ce fichier .nup correspond au Title ID {nup_info.title_id}, "
+                            f"alors que ce jeu attend : {', '.join(sorted(expected_ids))}.\n\n"
+                            "Veuillez sélectionner la ROM .nup correspondant au jeu.",
+                        )
+                        return
+                resolved_rom_arg = rom_path
+            else:
+                if (p / "exefs" / "main").is_file():
+                    resolved_rom_arg = str(p / "exefs")
+                elif (p / "main").is_file():
+                    resolved_rom_arg = str(p)
+                else:
+                    QMessageBox.warning(
+                        self,
+                        "Dossier invalide",
+                        "Le dossier sélectionné doit contenir un sous-dossier 'exefs' (avec 'main').",
+                    )
+                    return
+                if (p / "romfs").is_dir():
+                    resolved_romfs_dir = str(p / "romfs")
 
         self._save_settings()
         env = dict(os.environ)
@@ -554,6 +593,8 @@ class GameLauncherWindow(QMainWindow):
 
         if self.rom_env_var and self.rom_input is not None:
             env[self.rom_env_var] = self.rom_input.text().strip()
+        if resolved_romfs_dir:
+            env["NXRT_FS_ROMFS"] = resolved_romfs_dir
 
         for _opt_id, (chk, opt) in self.toggles.items():
             var = opt.get("env_var") or opt.get("env")
@@ -568,7 +609,7 @@ class GameLauncherWindow(QMainWindow):
 
         cmd = list(self.config.get("command", [])) + self.extra_args
         if self.rom_env_var and self.rom_input is not None:
-            rom_val = self.rom_input.text().strip()
+            rom_val = resolved_rom_arg or self.rom_input.text().strip()
             cmd = [str(part).replace("{rom}", rom_val) for part in cmd]
         cwd = str(self.config.get("working_dir") or self.base_dir)
         env["PYTHONUNBUFFERED"] = "1"
