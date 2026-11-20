@@ -247,8 +247,30 @@ QComboBox, QSpinBox {
     padding: 7px 10px;
     color: #f1f5f9;
 }
+QComboBox {
+    padding-right: 28px;
+}
+QComboBox::drop-down {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 24px;
+    border-left: 1px solid #1e293b;
+    border-top-right-radius: 7px;
+    border-bottom-right-radius: 7px;
+    background-color: #0f1520;
+}
+QComboBox::down-arrow {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #94a3b8;
+}
 QComboBox:focus, QSpinBox:focus {
     border-color: #e11d48;
+}
+QComboBox:focus::drop-down {
+    border-left-color: #e11d48;
 }
 QComboBox QAbstractItemView {
     background-color: #0f1520;
