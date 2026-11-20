@@ -65,7 +65,7 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
 
 ## Fonctionnalités
 
-- **Version compilée autonome (`dist/NUP Studio.exe`)** : utilisable directement sans installer Python ni ses dépendances (`tools/game_launcher.exe` inclus pour le lanceur de jeu).
+- **Version compilée autonome (`NUP Studio.exe`)** : utilisable directement sans installer Python ni ses dépendances (`tools/game_launcher.exe` inclus pour le lanceur de jeu).
 - **Recompilateur** : glisser-déposer d'un fichier `.nup`, détection automatique du jeu et du recompileur associé, barre de progression, console temps réel et création de raccourcis (Menu Démarrer et Bureau).
 - **Désinstallation intégrée à Windows** : chaque jeu recompilé apparaît dans *Paramètres → Applications installées* de Windows et peut être désinstallé en un clic (supprime le dossier du jeu et ses raccourcis tout en conservant le fichier ROM `.nup` et les sauvegardes).
 - **Support des manettes sur tous les jeux** : prise en charge des manettes (Xbox, PlayStation, Switch, génériques via SDL3) sur l'ensemble des jeux recompilés.
@@ -81,15 +81,15 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
 ## Prérequis
 
 - **Windows 10 / 11** (64 bits)
-- **Version compilée (`dist/NUP Studio.exe`)** : aucun Python requis pour utiliser l'interface et lancer les jeux (les recompileurs C++ utilisent leur propre toolchain ou MSYS2 Clang64 lors de la compilation initiale d'un jeu).
+- **Version compilée (`NUP Studio.exe`)** : aucun Python requis pour utiliser l'interface et lancer les jeux (les recompileurs C++ utilisent leur propre toolchain ou MSYS2 Clang64 lors de la compilation initiale d'un jeu).
 - **Mode sources Python (optionnel)** : Python 3.10+ avec `requirements.txt` (`PySide6 >= 6.6`, `zstandard >= 0.22`, `Pillow >= 10.0`).
 
 ## Installation et lancement
 
-Lancez simplement `start.bat` (exécute directement la version compilée `dist/NUP Studio.exe`) :
+Lancez simplement `NUP Studio.exe` à la racine du projet :
 
 ```bat
-start.bat
+"NUP Studio.exe"
 ```
 
 Pour reconstruire la version compilée :

@@ -11,10 +11,11 @@ if (Test-Path -LiteralPath $distRoot) { Remove-Item -Recurse -Force $distRoot }
 if (Test-Path -LiteralPath $tmpWork) { Remove-Item -Recurse -Force $tmpWork }
 New-Item -ItemType Directory -Force -Path $distRoot | Out-Null
 
-Write-Host "[1/3] Building NUP Studio.exe (onedir)..." -ForegroundColor Cyan
+Write-Host "[1/3] Building NUP Studio.exe (exe at root, internals in dist\)..." -ForegroundColor Cyan
 python -m PyInstaller `
     --noconfirm --clean --onedir --windowed `
     --name "NUP Studio" `
+    --contents-directory "dist" `
     --icon (Join-Path $root "assets\app_icon.ico") `
     --distpath $stageDist `
     --workpath (Join-Path $tmpWork "main") `
@@ -30,7 +31,10 @@ python -m PyInstaller `
     "main.py"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Get-ChildItem -LiteralPath (Join-Path $stageDist "NUP Studio") -Force | ForEach-Object {
+$builtExe = Join-Path $stageDist "NUP Studio\NUP Studio.exe"
+$builtDist = Join-Path $stageDist "NUP Studio\dist"
+Move-Item -LiteralPath $builtExe -Destination (Join-Path $root "NUP Studio.exe") -Force
+Get-ChildItem -LiteralPath $builtDist -Force | ForEach-Object {
     Move-Item -LiteralPath $_.FullName -Destination (Join-Path $distRoot $_.Name) -Force
 }
 

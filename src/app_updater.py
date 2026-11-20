@@ -215,7 +215,8 @@ def apply_app_update(
 
             ps1_path = Path(tempfile.gettempdir()) / f"nupstudio_apply_{os.getpid()}.ps1"
             src_dist = str(payload / "dist").replace("'", "''")
-            dst_dist = str(exe_dir).replace("'", "''")
+            dst_dist = str(exe_dir / "dist").replace("'", "''")
+            src_exe = str(payload / "NUP Studio.exe").replace("'", "''")
             exe_str = str(exe_path).replace("'", "''")
             stage_str = str(stage_dir).replace("'", "''")
             ps1_str = str(ps1_path).replace("'", "''")
@@ -226,6 +227,8 @@ for ($i = 0; $i -lt 60; $i++) {{
     if (-not (Get-Process -Id {pid} -ErrorAction SilentlyContinue)) {{ break }}
     Start-Sleep -Milliseconds 500
 }}
+if (Test-Path -LiteralPath '{src_exe}') {{ Copy-Item -LiteralPath '{src_exe}' -Destination '{exe_str}' -Force }}
+New-Item -ItemType Directory -Force -Path '{dst_dist}' | Out-Null
 Copy-Item -Path '{src_dist}\\*' -Destination '{dst_dist}' -Recurse -Force
 Remove-Item -Path '{stage_str}' -Recurse -Force
 Start-Process -FilePath '{exe_str}'
