@@ -419,7 +419,7 @@ class MainWindow(QMainWindow):
 
         dz_header = QHBoxLayout()
         dz_label = QLabel(
-            "Glissez-déposez votre ROM Switch 2 (.nup) ici ou sélectionnez un fichier :"
+            "Glissez-déposez votre ROM (.nup) ou dossier (exefs/romfs) ici :"
         )
         dz_label.setStyleSheet("font-weight: 600; color: #e2e8f0; font-size: 13px;")
         self.status_badge = QLabel("En attente d'une ROM")
@@ -435,12 +435,15 @@ class MainWindow(QMainWindow):
         rom_row = QHBoxLayout()
         rom_row.setSpacing(10)
         self.rom_input = QLineEdit()
-        self.rom_input.setPlaceholderText("Chemin vers le fichier .nup (ex: ocarina_of_time.nup)")
+        self.rom_input.setPlaceholderText("Chemin vers un fichier .nup ou un dossier contenant exefs/romfs")
         self.rom_input.setReadOnly(True)
-        btn_browse_rom = QPushButton("Parcourir une ROM (.nup)…")
+        btn_browse_rom = QPushButton("Parcourir .nup…")
         btn_browse_rom.clicked.connect(self._browse_rom)
+        btn_browse_rom_dir = QPushButton("Parcourir dossier…")
+        btn_browse_rom_dir.clicked.connect(self._browse_rom_folder)
         rom_row.addWidget(self.rom_input, stretch=1)
         rom_row.addWidget(btn_browse_rom)
+        rom_row.addWidget(btn_browse_rom_dir)
         dz_layout.addLayout(rom_row)
 
         self.lbl_status_detail = QLabel(
@@ -885,6 +888,15 @@ class MainWindow(QMainWindow):
             "Sélectionner une ROM Switch 2 (.nup)",
             "",
             "Package Switch 2 (*.nup);;Tous les fichiers (*.*)",
+        )
+        if path:
+            self._load_rom(Path(path))
+
+    def _browse_rom_folder(self) -> None:
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "Sélectionner un dossier du jeu (contenant exefs / romfs)",
+            "",
         )
         if path:
             self._load_rom(Path(path))

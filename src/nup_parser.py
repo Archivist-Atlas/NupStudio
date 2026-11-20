@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
 import struct
 
@@ -41,9 +42,72 @@ def _unpack_from(buf: bytes, offset: int, fmt: str) -> tuple:
     return struct.unpack_from(fmt, buf, offset)
 
 
+def parse_game_folder(path: str | Path) -> NupInfo:
+    """Inspect an extracted Switch / Switch 2 game folder (containing exefs/ and romfs/)."""
+    import re
+
+    folder = Path(path)
+    if not folder.is_dir():
+        raise NupParseError(f"Dossier introuvable : {folder}")
+
+    if (folder / "exefs" / "main").is_file():
+        exefs_dir = folder / "exefs"
+    elif (folder / "main").is_file():
+        exefs_dir = folder
+    else:
+        raise NupParseError(
+            "Dossier invalide : il doit contenir un sous-dossier 'exefs' avec le fichier 'main'."
+        )
+
+    title_id = ""
+    npdm = exefs_dir / "main.npdm"
+    if npdm.is_file():
+        data = npdm.read_bytes()
+        if len(data) >= 0x80 and data[0:4] == b"META":
+            aci0_off = struct.unpack_from("<I", data, 0x70)[0]
+            if aci0_off + 0x20 <= len(data) and data[aci0_off : aci0_off + 4] == b"ACI0":
+                pid = struct.unpack_from("<Q", data, aci0_off + 0x10)[0]
+                if pid:
+                    title_id = f"{pid:016X}"
+
+    if not title_id:
+        m = re.search(r"([0-9A-Fa-f]{16})", folder.name)
+        if m:
+            title_id = m.group(1).upper()
+
+    if not title_id:
+        raise NupParseError(
+            "Impossible de déterminer le Title ID depuis exefs/main.npdm."
+        )
+
+    exefs_files = sorted(f.name for f in exefs_dir.iterdir() if f.is_file())
+    total_size = sum(f.stat().st_size for f in exefs_dir.iterdir() if f.is_file())
+    romfs_dir = folder / "romfs"
+    if romfs_dir.is_dir():
+        for root, _, files in os.walk(romfs_dir):
+            for fn in files:
+                try:
+                    total_size += (Path(root) / fn).stat().st_size
+                except OSError:
+                    pass
+
+    pkg = NupPackage(title_id=title_id, exefs_dir_index=0, version=0, kind=0)
+    return NupInfo(
+        file_path=folder,
+        file_size=total_size,
+        title_id=title_id,
+        version=0,
+        kind=0,
+        exefs_files=exefs_files,
+        all_packages=[pkg],
+    )
+
+
 def parse_nup(path: str | Path) -> NupInfo:
-    """Parse a Switch 2 .nup file header and table of contents."""
+    """Parse a Switch 2 .nup file header and table of contents (or an exefs/romfs folder)."""
     file_path = Path(path)
+    if file_path.is_dir():
+        return parse_game_folder(file_path)
     if not file_path.is_file():
         raise NupParseError(f"Fichier introuvable : {file_path}")
 
