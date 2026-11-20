@@ -40,6 +40,7 @@ from PySide6.QtWidgets import (
 )
 
 from .app_updater import AppUpdateInfo, get_local_version_info
+from .i18n import I18nManager, SUPPORTED_LANGUAGES
 from .msys2_helper import is_msys2_ready
 from .nup_parser import NupParseError, parse_nup
 from .nup_explorer_tab import NupExplorerTab
@@ -303,6 +304,7 @@ class MainWindow(QMainWindow):
     def __init__(self, root_dir: Path) -> None:
         super().__init__()
         self.root_dir = root_dir
+        self.i18n = I18nManager(root_dir)
         self.manager = RecompilerManager(root_dir)
         self.current_match: Optional[MatchResult] = None
         self.worker: Optional[RecompileWorker] = None
@@ -329,6 +331,7 @@ class MainWindow(QMainWindow):
                 break
 
         self._build_ui()
+        self._apply_translations()
         self._refresh_supported_games_table()
         QTimer.singleShot(1500, self._check_app_update_silent)
 
@@ -375,20 +378,26 @@ class MainWindow(QMainWindow):
         title_box.setSpacing(2)
         title = QLabel("NUP Studio")
         title.setStyleSheet("font-size: 21px; font-weight: 700; color: #ffffff;")
-        subtitle = QLabel(
-            "Explorateur, modding, conversion et recompilation de jeux Switch 2 (.nup)"
-        )
-        subtitle.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        self.lbl_app_subtitle = QLabel(self.i18n.tr("app_subtitle"))
+        self.lbl_app_subtitle.setStyleSheet("color: #94a3b8; font-size: 12px;")
         title_box.addWidget(title)
-        title_box.addWidget(subtitle)
+        title_box.addWidget(self.lbl_app_subtitle)
         header_row.addLayout(title_box)
         header_row.addStretch()
 
+        self.lang_combo = QComboBox()
+        for code, label in SUPPORTED_LANGUAGES:
+            self.lang_combo.addItem(label, code)
+        idx = self.lang_combo.findData(self.i18n.language)
+        if idx >= 0:
+            self.lang_combo.setCurrentIndex(idx)
+        self.lang_combo.currentIndexChanged.connect(self._on_language_changed)
+        header_row.addWidget(self.lang_combo)
+
         local_ver, _, _ = get_local_version_info(self.root_dir)
-        self.btn_app_update = QPushButton(f"v{local_ver} • Mise à jour")
-        self.btn_app_update.setToolTip(
-            "Vérifier et installer les mises à jour de NUP Studio depuis GitHub (sans git ni dépendance externe)."
-        )
+        self._local_ver = local_ver
+        self.btn_app_update = QPushButton(self.i18n.tr("btn_app_update", ver=local_ver))
+        self.btn_app_update.setToolTip(self.i18n.tr("btn_app_update_tooltip"))
         self.btn_app_update.clicked.connect(self._on_click_app_update)
         header_row.addWidget(self.btn_app_update)
 
@@ -418,16 +427,14 @@ class MainWindow(QMainWindow):
         dz_layout.setSpacing(10)
 
         dz_header = QHBoxLayout()
-        dz_label = QLabel(
-            "Glissez-déposez votre ROM (.nup) ou dossier (exefs/romfs) ici :"
-        )
-        dz_label.setStyleSheet("font-weight: 600; color: #e2e8f0; font-size: 13px;")
-        self.status_badge = QLabel("En attente d'une ROM")
+        self.dz_label = QLabel(self.i18n.tr("drop_label"))
+        self.dz_label.setStyleSheet("font-weight: 600; color: #e2e8f0; font-size: 13px;")
+        self.status_badge = QLabel(self.i18n.tr("badge_waiting_rom"))
         self.status_badge.setStyleSheet(
             "background-color: #1e293b; color: #94a3b8; padding: 5px 12px; "
             "border-radius: 12px; font-weight: 600; font-size: 12px;"
         )
-        dz_header.addWidget(dz_label)
+        dz_header.addWidget(self.dz_label)
         dz_header.addStretch()
         dz_header.addWidget(self.status_badge)
         dz_layout.addLayout(dz_header)
@@ -435,15 +442,15 @@ class MainWindow(QMainWindow):
         rom_row = QHBoxLayout()
         rom_row.setSpacing(10)
         self.rom_input = QLineEdit()
-        self.rom_input.setPlaceholderText("Chemin vers un fichier .nup ou un dossier contenant exefs/romfs")
+        self.rom_input.setPlaceholderText(self.i18n.tr("rom_placeholder"))
         self.rom_input.setReadOnly(True)
-        btn_browse_rom = QPushButton("Fichier .nup…")
-        btn_browse_rom.clicked.connect(self._browse_rom)
-        btn_browse_rom_dir = QPushButton("Dossier du dump…")
-        btn_browse_rom_dir.clicked.connect(self._browse_rom_folder)
+        self.btn_browse_rom = QPushButton(self.i18n.tr("btn_nup_file"))
+        self.btn_browse_rom.clicked.connect(self._browse_rom)
+        self.btn_browse_rom_dir = QPushButton(self.i18n.tr("btn_dump_folder"))
+        self.btn_browse_rom_dir.clicked.connect(self._browse_rom_folder)
         rom_row.addWidget(self.rom_input, stretch=1)
-        rom_row.addWidget(btn_browse_rom)
-        rom_row.addWidget(btn_browse_rom_dir)
+        rom_row.addWidget(self.btn_browse_rom)
+        rom_row.addWidget(self.btn_browse_rom_dir)
         dz_layout.addLayout(rom_row)
 
         self.lbl_status_detail = QLabel(
@@ -468,14 +475,14 @@ class MainWindow(QMainWindow):
 
         out_row = QHBoxLayout()
         out_row.setSpacing(10)
-        out_lbl = QLabel("Dossier d'installation PC")
-        out_lbl.setStyleSheet("color: #94a3b8; font-weight: 600;")
+        self.out_lbl = QLabel(self.i18n.tr("lbl_output_dir"))
+        self.out_lbl.setStyleSheet("color: #94a3b8; font-weight: 600;")
         self.out_input = QLineEdit(str(self._default_output_base()))
-        btn_browse_out = QPushButton("Choisir…")
-        btn_browse_out.clicked.connect(self._browse_output)
-        out_row.addWidget(out_lbl)
+        self.btn_browse_out = QPushButton(self.i18n.tr("btn_choose"))
+        self.btn_browse_out.clicked.connect(self._browse_output)
+        out_row.addWidget(self.out_lbl)
         out_row.addWidget(self.out_input, stretch=1)
-        out_row.addWidget(btn_browse_out)
+        out_row.addWidget(self.btn_browse_out)
         out_layout.addLayout(out_row)
 
         self.chk_desktop_shortcut = QCheckBox("Créer un raccourci avec icône sur le Bureau")
@@ -535,13 +542,13 @@ class MainWindow(QMainWindow):
 
         # Console Logs
         log_header = QHBoxLayout()
-        log_title = QLabel("Console de recompilation")
-        log_title.setStyleSheet("font-weight: 600; color: #94a3b8;")
-        btn_clear_log = QPushButton("Effacer")
-        btn_clear_log.clicked.connect(lambda: self.log_view.clear())
-        log_header.addWidget(log_title)
+        self.log_title = QLabel(self.i18n.tr("lbl_console"))
+        self.log_title.setStyleSheet("font-weight: 600; color: #94a3b8;")
+        self.btn_clear_log = QPushButton(self.i18n.tr("btn_clear"))
+        self.btn_clear_log.clicked.connect(lambda: self.log_view.clear())
+        log_header.addWidget(self.log_title)
         log_header.addStretch()
-        log_header.addWidget(btn_clear_log)
+        log_header.addWidget(self.btn_clear_log)
         tab_layout.addLayout(log_header)
 
         self.log_view = QPlainTextEdit()
@@ -579,22 +586,22 @@ class MainWindow(QMainWindow):
 
         games_top = QHBoxLayout()
         games_top.setSpacing(10)
-        games_info = QLabel(
-            f"Sous-dossiers détectés dans : {self.manager.recompilers_dir}"
+        self.games_info = QLabel(
+            self.i18n.tr("games_detected_in", dir=self.manager.recompilers_dir)
         )
-        games_info.setWordWrap(True)
-        games_info.setStyleSheet("color: #94a3b8;")
-        btn_refresh = QPushButton("Actualiser")
-        btn_refresh.clicked.connect(self._refresh_supported_games_table)
-        btn_open_dir = QPushButton("Ouvrir tools/recompilers/")
-        btn_open_dir.clicked.connect(
+        self.games_info.setWordWrap(True)
+        self.games_info.setStyleSheet("color: #94a3b8;")
+        self.btn_refresh = QPushButton(self.i18n.tr("btn_refresh"))
+        self.btn_refresh.clicked.connect(self._refresh_supported_games_table)
+        self.btn_open_dir = QPushButton(self.i18n.tr("btn_open_recompilers"))
+        self.btn_open_dir.clicked.connect(
             lambda: QDesktopServices.openUrl(
                 QUrl.fromLocalFile(str(self.manager.recompilers_dir))
             )
         )
-        games_top.addWidget(games_info, stretch=1)
-        games_top.addWidget(btn_refresh)
-        games_top.addWidget(btn_open_dir)
+        games_top.addWidget(self.games_info, stretch=1)
+        games_top.addWidget(self.btn_refresh)
+        games_top.addWidget(self.btn_open_dir)
         games_layout.addLayout(games_top)
 
         backup_card = QFrame()
@@ -602,18 +609,15 @@ class MainWindow(QMainWindow):
         backup_row = QHBoxLayout(backup_card)
         backup_row.setContentsMargins(14, 10, 14, 10)
         backup_row.setSpacing(12)
-        backup_text = QLabel(
-            "<b>Sauvegarde hors-ligne des recompileurs</b><br>"
-            "<span style='color:#94a3b8; font-size:12px;'>"
-            "Télécharge de force tous les dépôts de recompileurs dans tools/recompilers/ (sans avoir besoin d'un jeu .nup) "
-            "afin de conserver une copie complète en cas de disparition des dépôts en ligne."
-            "</span>"
+        self.backup_text = QLabel(
+            f"<b>{self.i18n.tr('backup_title')}</b><br>"
+            f"<span style='color:#94a3b8; font-size:12px;'>{self.i18n.tr('backup_desc')}</span>"
         )
-        backup_text.setWordWrap(True)
-        self.btn_backup_recompilers = QPushButton("Sauvegarder tous les recompileurs")
+        self.backup_text.setWordWrap(True)
+        self.btn_backup_recompilers = QPushButton(self.i18n.tr("btn_backup_recompilers"))
         self.btn_backup_recompilers.setObjectName("PrimaryBtn")
         self.btn_backup_recompilers.clicked.connect(self._on_click_backup_recompilers)
-        backup_row.addWidget(backup_text, stretch=1)
+        backup_row.addWidget(self.backup_text, stretch=1)
         backup_row.addWidget(self.btn_backup_recompilers)
         games_layout.addWidget(backup_card)
 
@@ -655,27 +659,30 @@ class MainWindow(QMainWindow):
         grid.setVerticalSpacing(10)
         grid.setColumnStretch(1, 1)
 
-        title = QLabel("EXTRAIRE UNE ROM .NUP")
-        title.setObjectName("SectionTitle")
-        grid.addWidget(title, 0, 0, 1, 3)
+        self.ext_title = QLabel("EXTRAIRE UNE ROM .NUP")
+        self.ext_title.setObjectName("SectionTitle")
+        grid.addWidget(self.ext_title, 0, 0, 1, 3)
 
-        grid.addWidget(QLabel("Fichier .nup :"), 1, 0)
+        self.ext_lbl_nup = QLabel("Fichier .nup :")
+        grid.addWidget(self.ext_lbl_nup, 1, 0)
         self.ext_nup_input = QLineEdit()
         self.ext_nup_input.setPlaceholderText("Sélectionnez le fichier .nup à extraire…")
         grid.addWidget(self.ext_nup_input, 1, 1)
-        btn_browse_nup = QPushButton("Parcourir…")
-        btn_browse_nup.clicked.connect(self._browse_extract_nup)
-        grid.addWidget(btn_browse_nup, 1, 2)
+        self.btn_ext_browse_nup = QPushButton("Parcourir…")
+        self.btn_ext_browse_nup.clicked.connect(self._browse_extract_nup)
+        grid.addWidget(self.btn_ext_browse_nup, 1, 2)
 
-        grid.addWidget(QLabel("Dossier de sortie :"), 2, 0)
+        self.ext_lbl_dest = QLabel("Dossier de sortie :")
+        grid.addWidget(self.ext_lbl_dest, 2, 0)
         self.ext_dest_input = QLineEdit()
         self.ext_dest_input.setPlaceholderText("Dossier où extraire les fichiers…")
         grid.addWidget(self.ext_dest_input, 2, 1)
-        btn_browse_dest = QPushButton("Parcourir…")
-        btn_browse_dest.clicked.connect(self._browse_extract_dest)
-        grid.addWidget(btn_browse_dest, 2, 2)
+        self.btn_ext_browse_dest = QPushButton("Parcourir…")
+        self.btn_ext_browse_dest.clicked.connect(self._browse_extract_dest)
+        grid.addWidget(self.btn_ext_browse_dest, 2, 2)
 
-        grid.addWidget(QLabel("Package :"), 3, 0)
+        self.ext_lbl_pkg = QLabel("Package :")
+        grid.addWidget(self.ext_lbl_pkg, 3, 0)
         self.ext_pkg_combo = QComboBox()
         self.ext_pkg_combo.addItem("Tous les packages (base + updates + dlc)", "all")
         self.ext_pkg_combo.addItem("1er package uniquement", "")
@@ -684,7 +691,8 @@ class MainWindow(QMainWindow):
         self.ext_pkg_combo.addItem("addon", "addon")
         grid.addWidget(self.ext_pkg_combo, 3, 1, 1, 2)
 
-        grid.addWidget(QLabel("Sous-dossier :"), 4, 0)
+        self.ext_lbl_sub = QLabel("Sous-dossier :")
+        grid.addWidget(self.ext_lbl_sub, 4, 0)
         self.ext_subtree_input = QLineEdit()
         self.ext_subtree_input.setPlaceholderText("Optionnel (ex: romfs ou exefs ; vide = tout)")
         grid.addWidget(self.ext_subtree_input, 4, 1, 1, 2)
@@ -738,37 +746,42 @@ class MainWindow(QMainWindow):
         grid.setVerticalSpacing(10)
         grid.setColumnStretch(1, 1)
 
-        title = QLabel("PACKAGER UN DOSSIER EN .NUP")
-        title.setObjectName("SectionTitle")
-        grid.addWidget(title, 0, 0, 1, 3)
+        self.pack_title = QLabel("PACKAGER UN DOSSIER EN .NUP")
+        self.pack_title.setObjectName("SectionTitle")
+        grid.addWidget(self.pack_title, 0, 0, 1, 3)
 
-        grid.addWidget(QLabel("Dossier source :"), 1, 0)
+        self.pack_lbl_src = QLabel("Dossier source :")
+        grid.addWidget(self.pack_lbl_src, 1, 0)
         self.pack_src_input = QLineEdit()
         self.pack_src_input.setPlaceholderText("Dossier du dump (base/updates/dlc ou exefs+romfs)…")
         grid.addWidget(self.pack_src_input, 1, 1)
-        btn_browse_src = QPushButton("Parcourir…")
-        btn_browse_src.clicked.connect(self._browse_pack_src)
-        grid.addWidget(btn_browse_src, 1, 2)
+        self.btn_pack_browse_src = QPushButton("Parcourir…")
+        self.btn_pack_browse_src.clicked.connect(self._browse_pack_src)
+        grid.addWidget(self.btn_pack_browse_src, 1, 2)
 
-        grid.addWidget(QLabel("Fichier .nup de sortie :"), 2, 0)
+        self.pack_lbl_out = QLabel("Fichier .nup de sortie :")
+        grid.addWidget(self.pack_lbl_out, 2, 0)
         self.pack_out_input = QLineEdit()
         self.pack_out_input.setPlaceholderText("Chemin du fichier .nup à créer…")
         grid.addWidget(self.pack_out_input, 2, 1)
-        btn_browse_out = QPushButton("Enregistrer sous…")
-        btn_browse_out.clicked.connect(self._browse_pack_out)
-        grid.addWidget(btn_browse_out, 2, 2)
+        self.btn_pack_browse_out = QPushButton("Enregistrer sous…")
+        self.btn_pack_browse_out.clicked.connect(self._browse_pack_out)
+        grid.addWidget(self.btn_pack_browse_out, 2, 2)
 
-        grid.addWidget(QLabel("Title ID (optionnel) :"), 3, 0)
+        self.pack_lbl_tid = QLabel("Title ID (optionnel) :")
+        grid.addWidget(self.pack_lbl_tid, 3, 0)
         self.pack_tid_input = QLineEdit()
         self.pack_tid_input.setPlaceholderText("16 caractères hex (ex: 010015100B514000)")
         grid.addWidget(self.pack_tid_input, 3, 1, 1, 2)
 
-        grid.addWidget(QLabel("Nom du jeu (optionnel) :"), 4, 0)
+        self.pack_lbl_name = QLabel("Nom du jeu (optionnel) :")
+        grid.addWidget(self.pack_lbl_name, 4, 0)
         self.pack_name_input = QLineEdit()
         self.pack_name_input.setPlaceholderText("Titre affiché dans les métadonnées")
         grid.addWidget(self.pack_name_input, 4, 1, 1, 2)
 
-        grid.addWidget(QLabel("Version / Éditeur :"), 5, 0)
+        self.pack_lbl_ver = QLabel("Version / Éditeur :")
+        grid.addWidget(self.pack_lbl_ver, 5, 0)
         meta_row = QHBoxLayout()
         meta_row.setSpacing(8)
         self.pack_ver_input = QLineEdit()
@@ -779,7 +792,8 @@ class MainWindow(QMainWindow):
         meta_row.addWidget(self.pack_pub_input, stretch=1)
         grid.addLayout(meta_row, 5, 1, 1, 2)
 
-        grid.addWidget(QLabel("Compression Zstd :"), 6, 0)
+        self.pack_lbl_zstd = QLabel("Compression Zstd :")
+        grid.addWidget(self.pack_lbl_zstd, 6, 0)
         opts_row = QHBoxLayout()
         opts_row.setSpacing(12)
         self.pack_level_spin = QSpinBox()
@@ -845,10 +859,96 @@ class MainWindow(QMainWindow):
         lbl.setStyleSheet("color: #f1f5f9;")
         return lbl
 
+    def _on_language_changed(self, _index: int) -> None:
+        code = str(self.lang_combo.currentData() or "fr")
+        self.i18n.set_language(code)
+        self._apply_translations()
+        self._refresh_supported_games_table()
+
+    def _apply_translations(self) -> None:
+        tr = self.i18n.tr
+        self.setWindowTitle(tr("window_title"))
+        self.lbl_app_subtitle.setText(tr("app_subtitle"))
+        self.btn_app_update.setText(tr("btn_app_update", ver=self._local_ver))
+        self.btn_app_update.setToolTip(tr("btn_app_update_tooltip"))
+
+        self.tabs.setTabText(0, tr("tab_convert"))
+        self.tabs.setTabText(1, tr("tab_recompilers"))
+        self.tabs.setTabText(2, tr("tab_extract"))
+        self.tabs.setTabText(3, tr("tab_pack"))
+        self.tabs.setTabText(4, tr("tab_explorer"))
+        self.tabs.setTabText(5, tr("tab_credits"))
+
+        self.dz_label.setText(tr("drop_label"))
+        self.rom_input.setPlaceholderText(tr("rom_placeholder"))
+        self.btn_browse_rom.setText(tr("btn_nup_file"))
+        self.btn_browse_rom_dir.setText(tr("btn_dump_folder"))
+        if self.current_match is None:
+            self.status_badge.setText(tr("badge_waiting_rom"))
+            self.lbl_status_detail.setText(tr("status_waiting_detail"))
+
+        self.out_lbl.setText(tr("lbl_output_dir"))
+        self.btn_browse_out.setText(tr("btn_choose"))
+        self.chk_desktop_shortcut.setText(tr("chk_desktop_shortcut"))
+        self.btn_compile.setText(tr("btn_compile"))
+        self.btn_cancel.setText(tr("btn_cancel"))
+        self.log_title.setText(tr("lbl_console"))
+        self.btn_clear_log.setText(tr("btn_clear"))
+        self.console_input.setPlaceholderText(tr("console_input_placeholder"))
+        self.btn_send_input.setText(tr("btn_send"))
+
+        self.games_info.setText(tr("games_detected_in", dir=self.manager.recompilers_dir))
+        self.btn_refresh.setText(tr("btn_refresh"))
+        self.btn_open_dir.setText(tr("btn_open_recompilers"))
+        self.backup_text.setText(
+            f"<b>{tr('backup_title')}</b><br>"
+            f"<span style='color:#94a3b8; font-size:12px;'>{tr('backup_desc')}</span>"
+        )
+        self.btn_backup_recompilers.setText(tr("btn_backup_recompilers"))
+        self.games_table.setHorizontalHeaderLabels(
+            [tr("col_game"), tr("col_recompiler"), tr("col_subfolder"), tr("col_status")]
+        )
+
+        self.ext_title.setText(tr("ext_title"))
+        self.ext_lbl_nup.setText(tr("ext_lbl_nup"))
+        self.ext_nup_input.setPlaceholderText(tr("ext_nup_placeholder"))
+        self.btn_ext_browse_nup.setText(tr("btn_browse"))
+        self.ext_lbl_dest.setText(tr("ext_lbl_dest"))
+        self.ext_dest_input.setPlaceholderText(tr("ext_dest_placeholder"))
+        self.btn_ext_browse_dest.setText(tr("btn_browse"))
+        self.ext_lbl_pkg.setText(tr("ext_lbl_pkg"))
+        self.ext_lbl_sub.setText(tr("ext_lbl_sub"))
+        self.ext_subtree_input.setPlaceholderText(tr("ext_subtree_placeholder"))
+        self.ext_flat_check.setText(tr("ext_flat_check"))
+        self.btn_ext_info.setText(tr("btn_ext_info"))
+        self.btn_ext_run.setText(tr("btn_ext_run"))
+        self.btn_ext_cancel.setText(tr("btn_cancel"))
+        self.ext_log.setPlaceholderText(tr("ext_log_placeholder"))
+
+        self.pack_title.setText(tr("pack_title"))
+        self.pack_lbl_src.setText(tr("pack_lbl_src"))
+        self.pack_src_input.setPlaceholderText(tr("pack_src_placeholder"))
+        self.btn_pack_browse_src.setText(tr("btn_browse"))
+        self.pack_lbl_out.setText(tr("pack_lbl_out"))
+        self.pack_out_input.setPlaceholderText(tr("pack_out_placeholder"))
+        self.btn_pack_browse_out.setText(tr("btn_save_as"))
+        self.pack_lbl_tid.setText(tr("pack_lbl_tid"))
+        self.pack_tid_input.setPlaceholderText(tr("pack_tid_placeholder"))
+        self.pack_lbl_name.setText(tr("pack_lbl_name"))
+        self.pack_name_input.setPlaceholderText(tr("pack_name_placeholder"))
+        self.pack_lbl_ver.setText(tr("pack_lbl_ver"))
+        self.pack_ver_input.setPlaceholderText(tr("pack_ver_placeholder"))
+        self.pack_pub_input.setPlaceholderText(tr("pack_pub_placeholder"))
+        self.pack_lbl_zstd.setText(tr("pack_lbl_zstd"))
+        self.pack_split_check.setText(tr("pack_split_check"))
+        self.btn_pack_run.setText(tr("btn_pack_run"))
+        self.btn_pack_cancel.setText(tr("btn_cancel"))
+        self.pack_log.setPlaceholderText(tr("pack_log_placeholder"))
+
     def _refresh_supported_games_table(self) -> None:
         recs: list[GameRecompiler] = self.manager.refresh()
         self.badge_count.setText(
-            f"{len(recs)} jeu{'x' if len(recs) > 1 else ''} supporté{'s' if len(recs) > 1 else ''}"
+            self.i18n.tr("badge_games_count", count=len(recs))
         )
         info = self._latest_update_info
         outdated_ids = set(info.outdated_recompiler_ids) if info else set()
