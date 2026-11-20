@@ -396,17 +396,6 @@ class MainWindow(QMainWindow):
 
         local_ver, _, _ = get_local_version_info(self.root_dir)
         self._local_ver = local_ver
-        self.btn_app_update = QPushButton(self.i18n.tr("btn_app_update", ver=local_ver))
-        self.btn_app_update.setToolTip(self.i18n.tr("btn_app_update_tooltip"))
-        self.btn_app_update.clicked.connect(self._on_click_app_update)
-        header_row.addWidget(self.btn_app_update)
-
-        self.badge_count = QLabel()
-        self.badge_count.setStyleSheet(
-            "background-color: #172554; color: #93c5fd; border: 1px solid #1e3a8a; "
-            "padding: 6px 14px; border-radius: 15px; font-weight: 600; font-size: 12px;"
-        )
-        header_row.addWidget(self.badge_count)
         root_layout.addLayout(header_row)
 
         # Tabs
@@ -835,11 +824,21 @@ class MainWindow(QMainWindow):
         self.explorer_tab = NupExplorerTab(self.root_dir)
         self.tabs.addTab(self.explorer_tab, "NUP Explorer")
 
-        # Status bar with logo icon
+        # Status bar with version/update status + logo icon
         sb = self.statusBar()
         sb.setStyleSheet(
             "QStatusBar { background-color: #090d14; color: #94a3b8; border-top: 1px solid #1e293b; }"
         )
+        self._status_btn_default_style = (
+            "QPushButton { background-color: #111827; color: #cbd5e1; border: 1px solid #1e293b; "
+            "padding: 2px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }"
+            "QPushButton:hover { background-color: #1e293b; color: #f8fafc; }"
+        )
+        self.btn_app_update = QPushButton(self.i18n.tr("btn_app_update", ver=self._local_ver))
+        self.btn_app_update.setToolTip(self.i18n.tr("btn_app_update_tooltip"))
+        self.btn_app_update.setStyleSheet(self._status_btn_default_style)
+        self.btn_app_update.clicked.connect(self._on_click_app_update)
+        sb.addPermanentWidget(self.btn_app_update)
         sb_icon = QLabel()
         logo_png = self.root_dir / "assets" / "app_icon.png"
         if logo_png.is_file():
@@ -947,9 +946,6 @@ class MainWindow(QMainWindow):
 
     def _refresh_supported_games_table(self) -> None:
         recs: list[GameRecompiler] = self.manager.refresh()
-        self.badge_count.setText(
-            self.i18n.tr("badge_games_count", count=len(recs))
-        )
         info = self._latest_update_info
         outdated_ids = set(info.outdated_recompiler_ids) if info else set()
         checked_ids = set(info.checked_recompiler_ids) if info else set()
@@ -1526,10 +1522,11 @@ class MainWindow(QMainWindow):
         else:
             local_ver, _, _ = get_local_version_info(self.root_dir)
             self.btn_app_update.setText(f"v{local_ver} • À jour")
-            self.btn_app_update.setStyleSheet("")
+            self.btn_app_update.setStyleSheet(self._status_btn_default_style)
             return
         self.btn_app_update.setStyleSheet(
-            "background-color: #065f46; border: 1px solid #10b981; color: #ecfdf5; font-weight: 700;"
+            "QPushButton { background-color: #065f46; border: 1px solid #10b981; color: #ecfdf5; "
+            "padding: 2px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; }"
         )
 
     def _on_click_app_update(self) -> None:
@@ -1649,7 +1646,7 @@ class MainWindow(QMainWindow):
             else:
                 local_ver, _, _ = get_local_version_info(self.root_dir)
                 self.btn_app_update.setText(f"v{local_ver} • À jour")
-                self.btn_app_update.setStyleSheet("")
+                self.btn_app_update.setStyleSheet(self._status_btn_default_style)
                 QMessageBox.information(self, "Mises à jour terminées", summary)
 
         w.finished_result.connect(_done)
