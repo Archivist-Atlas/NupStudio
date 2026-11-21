@@ -1072,8 +1072,9 @@ class GameLauncherWindow(QMainWindow):
                             ),
                         )
                         return
-                cmd_uses_exefs = any(
-                    "--exefs" in str(part) for part in self.config.get("command", [])
+                cmd_list = [str(part) for part in self.config.get("command", [])]
+                cmd_uses_exefs = any("--exefs" in part for part in cmd_list) and any(
+                    "{rom}" in part for part in cmd_list
                 )
                 if (cmd_uses_exefs or self.config.get("extract_compressed_nup", False)) and self._nup_has_compressed_entries(p):
                     cache_dir = self._ensure_extracted_nup_cache(p)
