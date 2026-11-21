@@ -49,6 +49,11 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
   <img src="assets/screen_7.jpg" alt="Pokémon Pokopia recompilé sur PC Windows" width="900">
 </p>
 
+## Hyrule Warriors: Age of Imprisonment
+<p align="center">
+  <img src="assets/screen_8.jpg" alt="Hyrule Warriors: Age of Imprisonment recompilé sur PC Windows" width="900">
+</p>
+
 
 ## Jeux supportés
 
@@ -61,6 +66,7 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
 | **Pokémon Legends: Z-A** | PokeZ-ARecomp (LASRecomp) | `0100F43008C44000`, `0100F43008C44800` | SDL3 / Vulkan |
 | **Mario Tennis Fever** | MTF Recomp | `0400D4201C6EA000`, `0400D4201C6EA800` | Win32 / Vulkan |
 | **Pokémon Pokopia** | Recompia (pokopia-recomp) | `0400A3A01EE4C000`, `0400A3A01EE4C800` | SDL3 / Vulkan |
+| **Hyrule Warriors: Age of Imprisonment** | HWAoI Recomp (Alano6678) | `04003F40232DE000`, `04003F40232DE800` | Win32 / Vulkan |
 
 
 ## Fonctionnalités
@@ -119,6 +125,7 @@ Les personnes listées ci-dessous sont les **contributeurs des recompileurs init
 - **Pokémon Legends: Z-A** (`PokeZ-ARecomp / LASRecomp`) : aqali1, Atterax, AzleKayn, DieMitchell, dvilela, Felipe Dias, gabrielsem16-bot, German Torres, gitarre1234rr5, Hexveil404, huangjianqin, Krijn kok, ky1vstar, lucabravi, Maganra, Man Sarip, NevesHenry, Oscar Andrén, Peiikai, Primož Ocepek, Tensorlong, Tristan, we11adam, wimw85
 - **Mario Tennis Fever** (`MTF Recomp`) : Kayo Chiaradia et les contributeurs des projets de base utilisés (Valiantsin Dzerakh / TotK Recomp, Peiikai / LASRecomp, MacNativeGames, jhaizhou / d2r-mobile, seedds / nxnative, a55uka / nup, Revivedx / SavageWindRecomp, NotRexed / Hookshot)
 - **Pokémon Pokopia** (`Recompia / pokopia-recomp`) : Angel Toloza, AngelXex, Carson Kompon, Chaos192, deviann877, drako (`drakolordx7`), Exonot, featureJosh (`Josh` / `Josh Q.`), Fernando Brito, Jeff Harrison, jerban, Jones, Julio Andrade, kevobato, Krijn kok, mishap, Piktrip, tinfoil-chewer, xFractals (`pokopia-native`)
+- **Hyrule Warriors: Age of Imprisonment** (`HWAoI Recomp`) : Alano6678, LibertyPrime27, fgabe (basé sur DKB Recomp / Lucas-blip-png)
 
 ### Contributeurs des outils NUP (Packager & Extractor)
 

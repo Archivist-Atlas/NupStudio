@@ -1786,6 +1786,9 @@ class MainWindow(QMainWindow):
             featureJosh (Josh / Josh Q.), Fernando Brito, Jeff Harrison, jerban, Jones, Julio Andrade,
             kevobato, Krijn kok, mishap, Piktrip, tinfoil-chewer, xFractals (pokopia-native)</p>
 
+            <h3>Hyrule Warriors: Age of Imprisonment (HWAoI Recomp)</h3>
+            <p>Alano6678, LibertyPrime27, fgabe (basé sur DKB Recomp / Lucas-blip-png)</p>
+
             <h2>Outils NUP (Packager &amp; Extractor — indépendants des recompileurs)</h2>
             <h3>nup (<a href="https://github.com/a55uka/nup" style="color:#93c5fd;">github.com/a55uka/nup</a>)</h3>
             <p>a55uka, CoolCat467, Kabosune</p>
