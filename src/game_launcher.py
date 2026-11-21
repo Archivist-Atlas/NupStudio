@@ -7,6 +7,8 @@ from collections import deque
 import json
 import os
 from pathlib import Path
+import shutil
+import struct
 import subprocess
 import sys
 from typing import Any, Optional
@@ -24,6 +26,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QMessageBox,
+    QProgressDialog,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -176,6 +179,7 @@ def _language_config_path() -> Path:
 
 LAUNCHER_I18N: dict[str, dict[str, str]] = {
     "fr": {
+        "extracting_nup": "Extraction du package .nup compressé (une seule fois)…",
         "win_title": "{game} — Options de lancement",
         "subtitle": "Paramètres de lancement avant démarrage",
         "rom_lbl": "Source du jeu (.nup ou dossier exefs/romfs)",
@@ -211,6 +215,7 @@ LAUNCHER_I18N: dict[str, dict[str, str]] = {
         "lang_scope_cancel": "Annuler",
     },
     "en": {
+        "extracting_nup": "Extracting compressed .nup package (one-time)…",
         "win_title": "{game} — Launch Options",
         "subtitle": "Pre-launch configuration",
         "rom_lbl": "Game source (.nup or exefs/romfs folder)",
@@ -246,6 +251,7 @@ LAUNCHER_I18N: dict[str, dict[str, str]] = {
         "lang_scope_cancel": "Cancel",
     },
     "it": {
+        "extracting_nup": "Estrazione del pacchetto .nup compresso (una sola volta)…",
         "win_title": "{game} — Opzioni di avvio",
         "subtitle": "Parametri di pre-avvio",
         "rom_lbl": "Origine del gioco (.nup o cartella exefs/romfs)",
@@ -281,6 +287,7 @@ LAUNCHER_I18N: dict[str, dict[str, str]] = {
         "lang_scope_cancel": "Annulla",
     },
     "pt": {
+        "extracting_nup": "Extraindo pacote .nup comprimido (apenas uma vez)…",
         "win_title": "{game} — Opções de inicialização",
         "subtitle": "Parâmetros de pré-inicialização",
         "rom_lbl": "Origem do jogo (.nup ou pasta exefs/romfs)",
@@ -316,6 +323,7 @@ LAUNCHER_I18N: dict[str, dict[str, str]] = {
         "lang_scope_cancel": "Cancelar",
     },
     "es": {
+        "extracting_nup": "Extrayendo paquete .nup comprimido (solo una vez)…",
         "win_title": "{game} — Opciones de inicio",
         "subtitle": "Parámetros previos al inicio",
         "rom_lbl": "Origen del juego (.nup o carpeta exefs/romfs)",
@@ -351,6 +359,7 @@ LAUNCHER_I18N: dict[str, dict[str, str]] = {
         "lang_scope_cancel": "Cancelar",
     },
     "de": {
+        "extracting_nup": "Komprimiertes .nup-Paket wird entpackt (einmalig)…",
         "win_title": "{game} — Startoptionen",
         "subtitle": "Startkonfiguration vor dem Spielstart",
         "rom_lbl": "Spielquelle (.nup oder exefs/romfs-Ordner)",
@@ -965,8 +974,86 @@ class GameLauncherWindow(QMainWindow):
         if path and self.rom_input is not None:
             self.rom_input.setText(path)
 
+    @staticmethod
+    def _nup_has_compressed_entries(nup_path: Path) -> bool:
+        try:
+            with nup_path.open("rb") as f:
+                sb = f.read(0x80)
+                if len(sb) < 0x18 or sb[:4] != b"NUP\x01":
+                    return False
+                toc_off, toc_size = struct.unpack_from("<QQ", sb, 8)
+                if toc_size == 0 or toc_size > (64 << 20):
+                    return False
+                f.seek(toc_off)
+                toc = f.read(toc_size)
+            packages_count = struct.unpack_from("<I", toc, 4)[0]
+            dirs_count, files_count = struct.unpack_from("<QQ", toc, 8)
+            file_table = 0x30 + packages_count * 0x40 + dirs_count * 0x18
+            for i in range(files_count):
+                off = file_table + i * 0x50
+                if off + 0x41 > len(toc):
+                    break
+                size = struct.unpack_from("<Q", toc, off + 8)[0]
+                codec = toc[off + 0x40]
+                if size > 0 and codec != 0:
+                    return True
+        except OSError:
+            pass
+        return False
+
+    def _ensure_extracted_nup_cache(self, nup_path: Path) -> Path:
+        cache_dir = self.base_dir / "_nup_cache"
+        meta_path = cache_dir / ".nup_meta.json"
+        st = nup_path.stat()
+        sig = {
+            "path": str(nup_path.resolve()),
+            "size": st.st_size,
+            "mtime_ns": st.st_mtime_ns,
+        }
+        if meta_path.is_file() and (cache_dir / "exefs" / "main").is_file():
+            try:
+                old = json.loads(meta_path.read_text(encoding="utf-8"))
+                if old == sig:
+                    return cache_dir
+            except (OSError, ValueError):
+                pass
+
+        packagers_dir = Path(__file__).resolve().parent.parent / "tools" / "packagers"
+        if packagers_dir.is_dir() and str(packagers_dir) not in sys.path:
+            sys.path.insert(0, str(packagers_dir))
+        from nup.access import extract_tree  # type: ignore
+        from nup.read import NupReader  # type: ignore
+
+        dlg = QProgressDialog(self._tr("extracting_nup"), "", 0, 0, self)
+        dlg.setCancelButton(None)
+        dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
+        dlg.setMinimumDuration(0)
+        dlg.show()
+        QApplication.processEvents()
+
+        try:
+            tmp_dir = self.base_dir / "_nup_cache_tmp"
+            if tmp_dir.exists():
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            with NupReader(str(nup_path)) as r:
+                pkgs = [p for p in r.packages if p.exefs_dir != 0xFFFFFFFF and p.kind in (0, 1)]
+                best = max(pkgs, key=lambda p: p.version) if pkgs else (r.packages[0] if r.packages else None)
+                if best is not None and best.exefs_dir != 0xFFFFFFFF:
+                    extract_tree(r, str(tmp_dir / "exefs"), best.exefs_dir, progress=lambda *_: QApplication.processEvents())
+                if best is not None and best.romfs_dir != 0xFFFFFFFF:
+                    extract_tree(r, str(tmp_dir / "romfs"), best.romfs_dir, progress=lambda *_: QApplication.processEvents())
+            if cache_dir.exists():
+                shutil.rmtree(cache_dir, ignore_errors=True)
+            tmp_dir.rename(cache_dir)
+            meta_path.write_text(json.dumps(sig, indent=2), encoding="utf-8")
+        finally:
+            dlg.close()
+        return cache_dir
+
     def _launch_game(self) -> None:
         resolved_rom_arg: Optional[str] = None
+        resolved_rom_env: Optional[str] = None
         resolved_romfs_dir: Optional[str] = None
         if self.rom_env_var and self.rom_input is not None:
             rom_path = self.rom_input.text().strip()
@@ -1012,7 +1099,22 @@ class GameLauncherWindow(QMainWindow):
                             ),
                         )
                         return
-                resolved_rom_arg = rom_path
+                cmd_uses_exefs = any(
+                    "--exefs" in str(part) for part in self.config.get("command", [])
+                )
+                if (cmd_uses_exefs or self.config.get("extract_compressed_nup", False)) and self._nup_has_compressed_entries(p):
+                    cache_dir = self._ensure_extracted_nup_cache(p)
+                    resolved_rom_arg = (
+                        str(cache_dir / "exefs")
+                        if (cache_dir / "exefs" / "main").is_file()
+                        else str(cache_dir)
+                    )
+                    resolved_rom_env = str(cache_dir)
+                    if (cache_dir / "romfs").is_dir():
+                        resolved_romfs_dir = str(cache_dir / "romfs")
+                else:
+                    resolved_rom_arg = rom_path
+                    resolved_rom_env = rom_path
             else:
                 if (p / "exefs" / "main").is_file():
                     resolved_rom_arg = str(p / "exefs")
@@ -1025,6 +1127,7 @@ class GameLauncherWindow(QMainWindow):
                         self._tr("err_invalid_dir_msg"),
                     )
                     return
+                resolved_rom_env = rom_path
                 if (p / "romfs").is_dir():
                     resolved_romfs_dir = str(p / "romfs")
 
@@ -1040,7 +1143,7 @@ class GameLauncherWindow(QMainWindow):
                 env[key] = str(value)
 
         if self.rom_env_var and self.rom_input is not None:
-            env[self.rom_env_var] = self.rom_input.text().strip()
+            env[self.rom_env_var] = resolved_rom_env or self.rom_input.text().strip()
         if resolved_romfs_dir:
             env["NXRT_FS_ROMFS"] = resolved_romfs_dir
 

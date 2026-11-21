@@ -11,11 +11,11 @@ if (Test-Path -LiteralPath $distRoot) { Remove-Item -Recurse -Force $distRoot }
 if (Test-Path -LiteralPath $tmpWork) { Remove-Item -Recurse -Force $tmpWork }
 New-Item -ItemType Directory -Force -Path $distRoot | Out-Null
 
-Write-Host "[1/3] Building NUP Studio.exe (exe at root, internals in dist\)..." -ForegroundColor Cyan
+Write-Host "[1/3] Building NUP Studio.exe (onedir, _internal in dist\_internal)..." -ForegroundColor Cyan
 python -m PyInstaller `
     --noconfirm --clean --onedir --windowed `
     --name "NUP Studio" `
-    --contents-directory "dist" `
+    --contents-directory "dist/_internal" `
     --icon (Join-Path $root "assets\app_icon.ico") `
     --distpath $stageDist `
     --workpath (Join-Path $tmpWork "main") `
@@ -32,11 +32,9 @@ python -m PyInstaller `
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $builtExe = Join-Path $stageDist "NUP Studio\NUP Studio.exe"
-$builtDist = Join-Path $stageDist "NUP Studio\dist"
+$builtInternal = Join-Path $stageDist "NUP Studio\dist\_internal"
 Move-Item -LiteralPath $builtExe -Destination (Join-Path $root "NUP Studio.exe") -Force
-Get-ChildItem -LiteralPath $builtDist -Force | ForEach-Object {
-    Move-Item -LiteralPath $_.FullName -Destination (Join-Path $distRoot $_.Name) -Force
-}
+Move-Item -LiteralPath $builtInternal -Destination (Join-Path $distRoot "_internal") -Force
 
 Write-Host "[2/3] Building standalone tools\game_launcher.exe (onefile)..." -ForegroundColor Cyan
 python -m PyInstaller `
@@ -44,6 +42,11 @@ python -m PyInstaller `
     --name "game_launcher" `
     --icon (Join-Path $root "assets\app_icon.ico") `
     --paths (Join-Path $root "src") `
+    --paths (Join-Path $root "tools\packagers") `
+    --hidden-import "nup" `
+    --hidden-import "nup.access" `
+    --hidden-import "nup.read" `
+    --hidden-import "zstandard" `
     --distpath (Join-Path $root "tools") `
     --workpath (Join-Path $tmpWork "launcher") `
     --specpath $tmpWork `
