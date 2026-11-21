@@ -25,6 +25,38 @@ def _settings_path() -> Path:
     return Path.home() / ".config" / "switch2recomp" / "nup_studio_settings.json"
 
 
+def get_setting(key: str, default: Any = None) -> Any:
+    """Read a persisted user setting from nup_studio_settings.json."""
+    p = _settings_path()
+    if p.is_file():
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and key in data:
+                return data[key]
+        except (OSError, ValueError):
+            pass
+    return default
+
+
+def set_setting(key: str, value: Any) -> None:
+    """Persist a user setting in nup_studio_settings.json (created on demand)."""
+    p = _settings_path()
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        data: dict[str, Any] = {}
+        if p.is_file():
+            try:
+                loaded = json.loads(p.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    data = loaded
+            except (OSError, ValueError):
+                pass
+        data[key] = value
+        p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def language_config_path() -> Path:
     """Shared language config in the parent folder of Switch2Recomp installations."""
     if os.name == "nt":

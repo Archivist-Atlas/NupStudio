@@ -40,7 +40,7 @@ from PySide6.QtWidgets import (
 )
 
 from .app_updater import AppUpdateInfo, get_local_version_info
-from .i18n import I18nManager, SUPPORTED_LANGUAGES
+from .i18n import I18nManager, SUPPORTED_LANGUAGES, get_setting, set_setting
 from .msys2_helper import is_msys2_ready
 from .nup_parser import NupParseError, parse_nup
 from .nup_explorer_tab import NupExplorerTab
@@ -1001,23 +1001,33 @@ class MainWindow(QMainWindow):
             self._load_rom(self.current_match.nup.file_path)
 
     def _browse_rom(self) -> None:
+        last_dir = str(get_setting("last_rom_dir", "") or "")
+        start_dir = last_dir if last_dir and Path(last_dir).is_dir() else ""
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Sélectionner une ROM Switch 2 (.nup)",
-            "",
+            start_dir,
             "Package Switch 2 (*.nup);;Tous les fichiers (*.*)",
         )
         if path:
-            self._load_rom(Path(path))
+            chosen = Path(path)
+            set_setting("last_rom_dir", str(chosen.parent))
+            self._load_rom(chosen)
 
     def _browse_rom_folder(self) -> None:
+        last_dir = str(
+            get_setting("last_dump_dir", "") or get_setting("last_rom_dir", "") or ""
+        )
+        start_dir = last_dir if last_dir and Path(last_dir).is_dir() else ""
         path = QFileDialog.getExistingDirectory(
             self,
             "Sélectionner un dossier du jeu (contenant exefs / romfs)",
-            "",
+            start_dir,
         )
         if path:
-            self._load_rom(Path(path))
+            chosen = Path(path)
+            set_setting("last_dump_dir", str(chosen.parent))
+            self._load_rom(chosen)
 
     @staticmethod
     def _game_folder_name(rec: GameRecompiler) -> str:
