@@ -34,8 +34,10 @@ from PySide6.QtWidgets import (
 )
 
 try:
+    from src.launcher_i18n import CATEGORY_I18N, OPTION_DESC_I18N, OPTION_LABEL_I18N
     from src.nup_parser import NupParseError, parse_nup
 except ImportError:
+    from launcher_i18n import CATEGORY_I18N, OPTION_DESC_I18N, OPTION_LABEL_I18N
     from nup_parser import NupParseError, parse_nup
 
 
@@ -393,45 +395,6 @@ LAUNCHER_I18N: dict[str, dict[str, str]] = {
         "lang_scope_all": "Alle Spiele",
         "lang_scope_game": "Nur dieses Spiel",
         "lang_scope_cancel": "Abbrechen",
-    },
-}
-
-
-CATEGORY_I18N: dict[str, dict[str, str]] = {
-    "Affichage & Audio": {
-        "en": "Display & Audio",
-        "it": "Schermo & Audio",
-        "pt": "Vídeo & Áudio",
-        "es": "Pantalla y Audio",
-        "de": "Anzeige & Audio",
-    },
-    "Rendu & Shaders": {
-        "en": "Rendering & Shaders",
-        "it": "Rendering & Shader",
-        "pt": "Renderização & Shaders",
-        "es": "Renderizado y Shaders",
-        "de": "Rendering & Shader",
-    },
-    "Mémoire GPU": {
-        "en": "GPU Memory",
-        "it": "Memoria GPU",
-        "pt": "Memória GPU",
-        "es": "Memoria GPU",
-        "de": "GPU-Speicher",
-    },
-    "Gameplay & Hacks": {
-        "en": "Gameplay & Hacks",
-        "it": "Gameplay & Hack",
-        "pt": "Gameplay & Hacks",
-        "es": "Jugabilidad y Hacks",
-        "de": "Gameplay & Hacks",
-    },
-    "Général": {
-        "en": "General",
-        "it": "Generale",
-        "pt": "Geral",
-        "es": "General",
-        "de": "Allgemein",
     },
 }
 
@@ -932,8 +895,18 @@ class GameLauncherWindow(QMainWindow):
         for name_lbl, desc_lbl, opt in self._opt_labels:
             lbl_i18n = opt.get("label_i18n") or {}
             desc_i18n = opt.get("description_i18n") or {}
-            name_lbl.setText(lbl_i18n.get(self._lang) or opt.get("label", ""))
-            desc_lbl.setText(desc_i18n.get(self._lang) or opt.get("description", ""))
+            raw_lbl = opt.get("label", "")
+            raw_desc = opt.get("description", "")
+            name_lbl.setText(
+                lbl_i18n.get(self._lang)
+                or OPTION_LABEL_I18N.get(raw_lbl, {}).get(self._lang)
+                or raw_lbl
+            )
+            desc_lbl.setText(
+                desc_i18n.get(self._lang)
+                or OPTION_DESC_I18N.get(raw_desc, {}).get(self._lang)
+                or raw_desc
+            )
 
     @staticmethod
     def _update_state_label(lbl: QLabel, checked: bool) -> None:
