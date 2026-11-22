@@ -349,6 +349,20 @@ OPTION_LABEL_I18N: dict[str, dict[str, str]] = {
         "es": "Ahorro de memoria RAM / VRAM (Memory Saver)",
         "de": "RAM- / VRAM-Speichersparmodus (Memory Saver)",
     },
+    "Décodage ASTC rapide": {
+        "en": "Fast ASTC decoding",
+        "it": "Decodifica ASTC rapida",
+        "pt": "Decodificação ASTC rápida",
+        "es": "Decodificación ASTC rápida",
+        "de": "Schnelle ASTC-Dekodierung",
+    },
+    "Pré-compilation du cache de shaders": {
+        "en": "Pre-warm shader cache",
+        "it": "Pre-compilazione della cache shader",
+        "pt": "Pré-compilação do cache de shaders",
+        "es": "Precompilación de la caché de shaders",
+        "de": "Shader-Cache vorwärmen",
+    },
 }
 
 OPTION_DESC_I18N: dict[str, dict[str, str]] = {
@@ -673,5 +687,26 @@ OPTION_DESC_I18N: dict[str, dict[str, str]] = {
         "pt": "Aloca memória sob demanda e libera páginas de texturas e zeros não utilizadas para economizar vários GB de RAM.",
         "es": "Asigna memoria bajo demanda y libera páginas de texturas y ceros no usadas para ahorrar varios GB de RAM.",
         "de": "Reserviert Speicher bei Bedarf und gibt ungenutzte Textur- und Nullseiten frei, um mehrere GB RAM zu sparen.",
+    },
+    "Synchronise l'affichage avec le taux de rafraîchissement de l'écran pour éviter le déchirement d'image.": {
+        "en": "Synchronizes display output with the monitor refresh rate to prevent screen tearing.",
+        "it": "Sincronizza la visualizzazione con la frequenza di aggiornamento dello schermo per evitare il tearing.",
+        "pt": "Sincroniza a exibição com a taxa de atualização do monitor para evitar rasgos na imagem.",
+        "es": "Sincroniza la pantalla con la frecuencia de actualización del monitor para evitar el tearing.",
+        "de": "Synchronisiert die Anzeige mit der Bildwiederholrate des Monitors, um Tearing zu vermeiden.",
+    },
+    "Accélère le chargement des textures ASTC au prix d'une légère baisse de qualité visuelle.": {
+        "en": "Speeds up ASTC texture loading at the cost of a slight reduction in visual quality.",
+        "it": "Velocizza il caricamento delle texture ASTC a costo di una leggera riduzione della qualità visiva.",
+        "pt": "Acelera o carregamento de texturas ASTC ao custo de uma leve redução na qualidade visual.",
+        "es": "Acelera la carga de texturas ASTC a costa de una ligera reducción de calidad visual.",
+        "de": "Beschleunigt das Laden von ASTC-Texturen auf Kosten einer leichten Einbuße bei der Bildqualität.",
+    },
+    "Pré-compile les pipelines Vulkan connus au démarrage pour réduire les micro-saccades en jeu.": {
+        "en": "Pre-compiles known Vulkan pipelines at startup to reduce in-game stutter.",
+        "it": "Pre-compila le pipeline Vulkan note all'avvio per ridurre gli scatti in gioco.",
+        "pt": "Pré-compila pipelines Vulkan conhecidos na inicialização para reduzir travamentos no jogo.",
+        "es": "Precompila los pipelines de Vulkan conocidos al inicio para reducir tirones en el juego.",
+        "de": "Kompiliert bekannte Vulkan-Pipelines beim Start vor, um Ruckler im Spiel zu reduzieren.",
     },
 }

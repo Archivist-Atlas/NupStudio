@@ -1852,6 +1852,9 @@ class MainWindow(QMainWindow):
             <h3>Yoshi and the Mysterious Book (pcdinobuds / yoshi4pc)</h3>
             <p>Shawn (nawnie), yoshi4pc (basé sur DKB Recomp / Lucas-blip-png et TotK Recomp / Valiantsin Dzerakh)</p>
 
+            <h3>Fire Emblem: Fortune's Weave (EmblemWeave / fefw-recomp)</h3>
+            <p>XiØN (XiONDiGiTaL), Goldoire (fefw-recomp), Obersteinn, moistman7, ranbinrang-rgb, Mi-Kel, metrist38, xinthefreefallxai</p>
+
             <h2>Outils NUP (Packager &amp; Extractor — indépendants des recompileurs)</h2>
             <h3>nup (<a href="https://github.com/a55uka/nup" style="color:#93c5fd;">github.com/a55uka/nup</a>)</h3>
             <p>a55uka, CoolCat467, Kabosune</p>
