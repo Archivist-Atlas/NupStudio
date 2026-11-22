@@ -64,6 +64,11 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
   <img src="assets/screen_10.jpg" alt="Star Fox recompilé sur PC Windows" width="900">
 </p>
 
+## Yoshi and the Mysterious Book
+<p align="center">
+  <img src="assets/screen_11.jpg" alt="Yoshi and the Mysterious Book recompilé sur PC Windows" width="900">
+</p>
+
 
 ## Jeux supportés
 
@@ -79,6 +84,7 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
 | **Hyrule Warriors: Age of Imprisonment** | HWAoI Recomp (Alano6678) | `04003F40232DE000`, `04003F40232DE800` | Win32 / Vulkan |
 | **Splatoon Raiders** | SPR Recomp (Elie-0066) | `0400380020056000`, `0400380020056800` | Win32 / Vulkan |
 | **Star Fox** | SpaceAnimalsRecomp (SerenityG4K) | `0400E88025B1A000`, `0400E88025B1A800` | Win32 / SDL3 / Vulkan |
+| **Yoshi and the Mysterious Book** | pcdinobuds / yoshi4pc (nawnie) | `0400245021D2C000`, `0400245021D2C800` | Win32 / SDL3 / Vulkan |
 
 
 ## Fonctionnalités
@@ -140,6 +146,7 @@ Les personnes listées ci-dessous sont les **contributeurs des recompileurs init
 - **Hyrule Warriors: Age of Imprisonment** (`HWAoI Recomp`) : Alano6678, LibertyPrime27, fgabe (basé sur DKB Recomp / Lucas-blip-png)
 - **Splatoon Raiders** (`SPR Recomp / SPR-Recomp-Project`) : Elie-0066 (Lyriiie), Ruben Ripalda (basé sur DKB Recomp / Lucas-blip-png et TotK Recomp / Valiantsin Dzerakh)
 - **Star Fox** (`SpaceAnimalsRecomp — StarFox Remake [recompiled]`) : SerenityG4K, Elenedeath (Elenedeath Olawir), sKuhLight, razzamatazm
+- **Yoshi and the Mysterious Book** (`pcdinobuds / yoshi4pc`) : Shawn (`nawnie`), yoshi4pc (basé sur DKB Recomp / Lucas-blip-png et TotK Recomp / Valiantsin Dzerakh)
 
 ### Contributeurs des outils NUP (Packager & Extractor)
 
