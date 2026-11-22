@@ -983,7 +983,15 @@ class MainWindow(QMainWindow):
                 item.setToolTip(text)
                 self.games_table.setItem(row, col, item)
 
-            if not rec.is_installed:
+            if rec.status == "wait_and_see":
+                if not rec.is_installed:
+                    status_text = "Wait & See (Non téléchargé)"
+                elif rec.id in outdated_ids:
+                    status_text = "Wait & See (MàJ dispo)"
+                else:
+                    status_text = "Wait & See"
+                status_color = "#f59e0b"
+            elif not rec.is_installed:
                 status_text = "Non téléchargé"
                 status_color = "#94a3b8"
             elif rec.id in outdated_ids:
@@ -1087,12 +1095,18 @@ class MainWindow(QMainWindow):
         self.out_input.setText(str(suggested_out))
 
         if match.version_supported:
-            self._set_badge("Recompilation disponible", "#064e3b", "#6ee7b7")
             dl_note = "" if rec.is_installed else " (sera téléchargé automatiquement au lancement)"
             ver_note = f" [{match.detected_version_label}]" if match.detected_version_label else ""
-            self.lbl_status_detail.setText(
-                f"Jeu supporté par {rec.recompiler_name}{ver_note}{dl_note}. {rec.description}"
-            )
+            if rec.status == "wait_and_see":
+                self._set_badge("Wait & See (WIP)", "#78350f", "#fde68a")
+                self.lbl_status_detail.setText(
+                    f"Statut Wait & See (recompilateur WIP — {rec.recompiler_name}{ver_note}{dl_note}). {rec.description}"
+                )
+            else:
+                self._set_badge("Recompilation disponible", "#064e3b", "#6ee7b7")
+                self.lbl_status_detail.setText(
+                    f"Jeu supporté par {rec.recompiler_name}{ver_note}{dl_note}. {rec.description}"
+                )
             self.btn_compile.setEnabled(self.worker is None)
         else:
             detail = match.version_mismatch_detail or (

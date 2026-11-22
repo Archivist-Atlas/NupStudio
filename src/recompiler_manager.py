@@ -28,6 +28,7 @@ class GameRecompiler:
     branch: str = "main"
     is_installed: bool = True
     expected_builds: list[dict[str, Any]] = field(default_factory=list)
+    status: str = ""
 
     def supports_version(self, version: int) -> bool:
         return not self.supported_versions or version in self.supported_versions
@@ -188,6 +189,7 @@ class RecompilerManager:
                             branch=str(data.get("branch") or cat.get("branch") or "main"),
                             is_installed=True,
                             expected_builds=list(data.get("expected_builds") or cat.get("expected_builds") or []),
+                            status=str(data.get("status") or cat.get("status") or ""),
                         )
                     )
                     seen_ids.add(rec_id)
@@ -216,6 +218,7 @@ class RecompilerManager:
                     branch=str(cat.get("branch") or "main"),
                     is_installed=False,
                     expected_builds=list(cat.get("expected_builds") or []),
+                    status=str(cat.get("status") or ""),
                 )
             )
 
