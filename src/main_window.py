@@ -1799,6 +1799,9 @@ class MainWindow(QMainWindow):
             <h3>Hyrule Warriors: Age of Imprisonment (HWAoI Recomp)</h3>
             <p>Alano6678, LibertyPrime27, fgabe (basé sur DKB Recomp / Lucas-blip-png)</p>
 
+            <h3>Splatoon Raiders (SPR Recomp / SPR-Recomp-Project)</h3>
+            <p>Elie-0066 (Lyriiie), Ruben Ripalda (basé sur DKB Recomp / Lucas-blip-png et TotK Recomp / Valiantsin Dzerakh)</p>
+
             <h2>Outils NUP (Packager &amp; Extractor — indépendants des recompileurs)</h2>
             <h3>nup (<a href="https://github.com/a55uka/nup" style="color:#93c5fd;">github.com/a55uka/nup</a>)</h3>
             <p>a55uka, CoolCat467, Kabosune</p>

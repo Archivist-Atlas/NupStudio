@@ -1076,7 +1076,11 @@ class GameLauncherWindow(QMainWindow):
                 cmd_uses_exefs = any("--exefs" in part for part in cmd_list) and any(
                     "{rom}" in part for part in cmd_list
                 )
-                if (cmd_uses_exefs or self.config.get("extract_compressed_nup", False)) and self._nup_has_compressed_entries(p):
+                need_extract_nup = bool(self.config.get("extract_nup", False)) or (
+                    (cmd_uses_exefs or self.config.get("extract_compressed_nup", False))
+                    and self._nup_has_compressed_entries(p)
+                )
+                if need_extract_nup:
                     cache_dir = self._ensure_extracted_nup_cache(p)
                     resolved_rom_arg = (
                         str(cache_dir / "exefs")
@@ -1135,7 +1139,11 @@ class GameLauncherWindow(QMainWindow):
         cmd = list(self.config.get("command", [])) + self.extra_args
         if self.rom_env_var and self.rom_input is not None:
             rom_val = resolved_rom_arg or self.rom_input.text().strip()
-            cmd = [str(part).replace("{rom}", rom_val) for part in cmd]
+            romfs_val = resolved_romfs_dir or str(self.base_dir / "romfs")
+            cmd = [
+                str(part).replace("{rom}", rom_val).replace("{romfs}", romfs_val)
+                for part in cmd
+            ]
         cwd = str(self.config.get("working_dir") or self.base_dir)
         env["PYTHONUNBUFFERED"] = "1"
         app = QApplication.instance()

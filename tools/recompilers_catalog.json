@@ -163,5 +163,26 @@
     "repo_url": "https://github.com/Archivist-Atlas/recompiler-hyrule-warriors-age-of-imprisonment.git",
     "branch": "main",
     "description": "Recompile Hyrule Warriors: Age of Imprisonment (Nintendo Switch 2, depuis votre .nup ou dossier exefs/romfs) en exécutable Windows PC natif (Vulkan, mode fenêtré 720p par défaut, plein écran via F11, Échap pour quitter)."
+  },
+  {
+    "id": "splatoon-raiders",
+    "name": "Splatoon Raiders",
+    "recompiler_name": "SPR Recomp (Elie-0066/SPR-Recomp-Project)",
+    "title_ids": [
+      "0400380020056000",
+      "0400380020056800"
+    ],
+    "supported_versions": [
+      0,
+      65536
+    ],
+    "default_output_subdir": "Splatoon Raiders",
+    "shortcut_name": "Splatoon Raiders",
+    "windows_entrypoint": "install.ps1",
+    "linux_entrypoint": "install.sh",
+    "icon": "game_icon.ico",
+    "repo_url": "https://github.com/Archivist-Atlas/recompiler-splatoon-raiders.git",
+    "branch": "main",
+    "description": "Recompile Splatoon Raiders (Nintendo Switch 2, depuis votre .nup ou dossier exefs/romfs) en exécutable Windows PC natif (Vulkan, mode fenêtré 720p par défaut, plein écran via F11, Échap pour quitter)."
   }
 ]
