@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import hashlib
 import os
 from pathlib import Path
 import struct
 
+try:
+    import zstandard as _zstd
+except ImportError:
+    _zstd = None
+
 
 NUP_MAGIC = b"NUP\x01"
+NSO_MAGIC = b"NSO0"
 MAX_TOC_SIZE = 64 << 20  # 64 MiB
+_NSO_MODULE_NAMES = {"main", "subsdk0", "subsdk1", "subsdk2", "subsdk3", "sdk", "rtld"}
 
 
 class NupParseError(Exception):
@@ -33,6 +41,34 @@ class NupInfo:
     kind: int
     exefs_files: list[str] = field(default_factory=list)
     all_packages: list[NupPackage] = field(default_factory=list)
+    exefs_sha256: dict[str, str] = field(default_factory=dict)
+    nso_build_ids: dict[str, str] = field(default_factory=dict)
+    is_folder: bool = False
+
+
+def _extract_nso_build_id(header: bytes) -> str:
+    """Extract the NSO0 ModuleId / Build ID (offset 0x40..0x60) as lowercase hex."""
+    if len(header) < 0x60 or header[:4] != NSO_MAGIC:
+        return ""
+    raw = header[0x40:0x60]
+    trimmed = raw.rstrip(b"\x00")
+    if not trimmed:
+        return ""
+    # Preserve at least 16 bytes (32 hex chars) when zero-padded
+    if len(trimmed) < 16:
+        return raw[:16].hex()
+    return trimmed.hex()
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while True:
+            chunk = f.read(1 << 20)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def _unpack_from(buf: bytes, offset: int, fmt: str) -> tuple:
@@ -50,10 +86,27 @@ def parse_game_folder(path: str | Path) -> NupInfo:
     if not folder.is_dir():
         raise NupParseError(f"Dossier introuvable : {folder}")
 
-    if (folder / "exefs" / "main").is_file():
-        exefs_dir = folder / "exefs"
-    elif (folder / "main").is_file():
-        exefs_dir = folder
+    active_root = folder
+    detected_version = 0
+    updates_dir = folder / "updates"
+    if updates_dir.is_dir():
+        upd_candidates = [
+            d for d in updates_dir.iterdir()
+            if d.is_dir() and (d / "exefs" / "main").is_file()
+        ]
+        if upd_candidates:
+            best_upd = max(
+                upd_candidates,
+                key=lambda d: int(d.name) if d.name.isdigit() else -1,
+            )
+            active_root = best_upd
+            if best_upd.name.isdigit():
+                detected_version = int(best_upd.name)
+
+    if (active_root / "exefs" / "main").is_file():
+        exefs_dir = active_root / "exefs"
+    elif (active_root / "main").is_file():
+        exefs_dir = active_root
     else:
         raise NupParseError(
             "Dossier invalide : il doit contenir un sous-dossier 'exefs' avec le fichier 'main'."
@@ -81,8 +134,22 @@ def parse_game_folder(path: str | Path) -> NupInfo:
         )
 
     exefs_files = sorted(f.name for f in exefs_dir.iterdir() if f.is_file())
+    exefs_sha256: dict[str, str] = {}
+    nso_build_ids: dict[str, str] = {}
+    for fn in exefs_files:
+        fp = exefs_dir / fn
+        try:
+            exefs_sha256[fn] = _sha256_file(fp)
+            if fn in _NSO_MODULE_NAMES:
+                with fp.open("rb") as fh:
+                    bid = _extract_nso_build_id(fh.read(0x60))
+                if bid:
+                    nso_build_ids[fn] = bid
+        except OSError:
+            pass
+
     total_size = sum(f.stat().st_size for f in exefs_dir.iterdir() if f.is_file())
-    romfs_dir = folder / "romfs"
+    romfs_dir = active_root / "romfs"
     if romfs_dir.is_dir():
         for root, _, files in os.walk(romfs_dir):
             for fn in files:
@@ -91,15 +158,18 @@ def parse_game_folder(path: str | Path) -> NupInfo:
                 except OSError:
                     pass
 
-    pkg = NupPackage(title_id=title_id, exefs_dir_index=0, version=0, kind=0)
+    pkg = NupPackage(title_id=title_id, exefs_dir_index=0, version=detected_version, kind=1 if detected_version else 0)
     return NupInfo(
         file_path=folder,
         file_size=total_size,
         title_id=title_id,
-        version=0,
-        kind=0,
+        version=detected_version,
+        kind=1 if detected_version else 0,
         exefs_files=exefs_files,
         all_packages=[pkg],
+        exefs_sha256=exefs_sha256,
+        nso_build_ids=nso_build_ids,
+        is_folder=True,
     )
 
 
@@ -172,6 +242,9 @@ def parse_nup(path: str | Path) -> NupInfo:
     children_table = file_table + files_count * 0x50
 
     exefs_files: list[str] = []
+    exefs_sha256: dict[str, str] = {}
+    nso_build_ids: dict[str, str] = {}
+    nso_extents: list[tuple[str, int, int, int]] = []
     dir_entry_off = dir_table + best.exefs_dir_index * 0x18
     first_child, child_count = _unpack_from(toc, dir_entry_off + 8, "<II")
     for idx in range(child_count):
@@ -179,11 +252,40 @@ def parse_nup(path: str | Path) -> NupInfo:
         if child_id < dirs_count:
             continue
         file_entry_off = file_table + (child_id - dirs_count) * 0x50
-        name_off, name_len = _unpack_from(toc, file_entry_off, "<II")
+        name_off, name_len, fsize, ext_off, ext_size, sha_bytes, codec = _unpack_from(
+            toc, file_entry_off, "<IIQQQ32sB"
+        )
         name_start = pool_offset + name_off
         name_end = name_start + name_len
         if name_end <= len(toc):
-            exefs_files.append(toc[name_start:name_end].decode("utf-8", errors="replace"))
+            fname = toc[name_start:name_end].decode("utf-8", errors="replace")
+            exefs_files.append(fname)
+            if any(sha_bytes):
+                exefs_sha256[fname] = sha_bytes.hex()
+            if fname in _NSO_MODULE_NAMES and fsize >= 0x60 and ext_off + ext_size <= file_size:
+                nso_extents.append((fname, ext_off, ext_size, codec))
+
+    if nso_extents:
+        try:
+            with file_path.open("rb") as f:
+                dctx = _zstd.ZstdDecompressor() if _zstd is not None else None
+                for fname, ext_off, ext_size, codec in nso_extents:
+                    f.seek(ext_off)
+                    if codec == 0:
+                        hdr = f.read(0x60)
+                    elif codec == 1 and dctx is not None:
+                        try:
+                            with dctx.stream_reader(f, closefd=False) as reader:
+                                hdr = reader.read(0x60)
+                        except Exception:
+                            hdr = b""
+                    else:
+                        hdr = b""
+                    bid = _extract_nso_build_id(hdr)
+                    if bid:
+                        nso_build_ids[fname] = bid
+        except OSError:
+            pass
 
     return NupInfo(
         file_path=file_path,
@@ -193,5 +295,8 @@ def parse_nup(path: str | Path) -> NupInfo:
         kind=best.kind,
         exefs_files=exefs_files,
         all_packages=packages,
+        exefs_sha256=exefs_sha256,
+        nso_build_ids=nso_build_ids,
+        is_folder=False,
     )
 

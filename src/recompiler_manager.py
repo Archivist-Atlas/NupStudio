@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from .nup_parser import NupInfo
 
@@ -27,9 +27,74 @@ class GameRecompiler:
     repo_url: str = ""
     branch: str = "main"
     is_installed: bool = True
+    expected_builds: list[dict[str, Any]] = field(default_factory=list)
 
     def supports_version(self, version: int) -> bool:
         return not self.supported_versions or version in self.supported_versions
+
+    def verify_source(self, nup: NupInfo) -> tuple[bool, str, str]:
+        """Verify that a .nup or extracted dump folder matches an expected version/build.
+
+        Returns (is_valid, detected_label, mismatch_reason).
+        """
+        if self.expected_builds:
+            for build in self.expected_builds:
+                label = str(build.get("label") or f"v{build.get('version', '?')}")
+                exp_bids = build.get("nso_build_ids") or {}
+                exp_shas = build.get("exefs_sha256") or {}
+
+                bid_match = False
+                if exp_bids and nup.nso_build_ids:
+                    bid_match = all(
+                        mod in nup.nso_build_ids
+                        and (
+                            nup.nso_build_ids[mod].lower().startswith(str(val).lower())
+                            or str(val).lower().startswith(nup.nso_build_ids[mod].lower())
+                        )
+                        for mod, val in exp_bids.items()
+                    )
+
+                sha_match = False
+                if exp_shas and nup.exefs_sha256:
+                    sha_match = all(
+                        mod in nup.exefs_sha256
+                        and nup.exefs_sha256[mod].lower() == str(val).lower()
+                        for mod, val in exp_shas.items()
+                    )
+
+                if bid_match or sha_match:
+                    return (True, label, "")
+
+            expected_labels = ", ".join(
+                str(b.get("label") or f"v{b.get('version', '?')}")
+                for b in self.expected_builds
+            )
+            found_parts: list[str] = []
+            if not nup.is_folder:
+                found_parts.append(f"v{nup.version}")
+            if "main" in nup.nso_build_ids:
+                found_parts.append(f"main={nup.nso_build_ids['main'][:16]}...")
+            elif "main" in nup.exefs_sha256:
+                found_parts.append(f"main sha256={nup.exefs_sha256['main'][:16]}...")
+            found_str = ", ".join(found_parts) if found_parts else "version inconnue"
+            reason = (
+                f"Version attendue : {expected_labels}. "
+                f"Source détectée : {found_str}."
+            )
+            return (False, found_str, reason)
+
+        if nup.is_folder:
+            return (True, "Dossier ExeFS/RomFS", "")
+
+        if self.supports_version(nup.version):
+            return (True, f"v{nup.version}", "")
+
+        expected = ", ".join(f"v{v}" for v in self.supported_versions)
+        return (
+            False,
+            f"v{nup.version}",
+            f"Version attendue : {expected}. Source détectée : v{nup.version}.",
+        )
 
     def resolve_icon_path(self) -> Optional[Path]:
         if not self.icon:
@@ -44,6 +109,8 @@ class MatchResult:
     known_game_name: Optional[str]
     recompiler: Optional[GameRecompiler]
     version_supported: bool
+    detected_version_label: str = ""
+    version_mismatch_detail: str = ""
 
 
 class RecompilerManager:
@@ -120,6 +187,7 @@ class RecompilerManager:
                             repo_url=str(data.get("repo_url") or cat.get("repo_url") or ""),
                             branch=str(data.get("branch") or cat.get("branch") or "main"),
                             is_installed=True,
+                            expected_builds=list(data.get("expected_builds") or cat.get("expected_builds") or []),
                         )
                     )
                     seen_ids.add(rec_id)
@@ -147,6 +215,7 @@ class RecompilerManager:
                     repo_url=str(cat.get("repo_url") or ""),
                     branch=str(cat.get("branch") or "main"),
                     is_installed=False,
+                    expected_builds=list(cat.get("expected_builds") or []),
                 )
             )
 
@@ -180,11 +249,16 @@ class RecompilerManager:
             (self._games_db[tid] for tid in candidate_ids if tid in self._games_db),
             None,
         )
-        version_ok = matched.supports_version(nup.version) if matched else False
+        if matched:
+            version_ok, detected_label, mismatch_detail = matched.verify_source(nup)
+        else:
+            version_ok, detected_label, mismatch_detail = False, f"v{nup.version}", ""
         return MatchResult(
             nup=nup,
             known_game_name=known_name,
             recompiler=matched,
             version_supported=version_ok,
+            detected_version_label=detected_label,
+            version_mismatch_detail=mismatch_detail,
         )
 

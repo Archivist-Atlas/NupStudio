@@ -212,7 +212,7 @@ QTableWidget {
 }
 QTableWidget::item {
     color: #f1f5f9;
-    padding: 10px 12px;
+    padding: 4px 12px;
     border: none;
 }
 QTableWidget::item:hover,
@@ -636,9 +636,13 @@ class MainWindow(QMainWindow):
         self.games_table.setAlternatingRowColors(True)
         self.games_table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.games_table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.games_table.setWordWrap(True)
-        self.games_table.verticalHeader().setVisible(False)
-        self.games_table.verticalHeader().setMinimumSectionSize(44)
+        self.games_table.setWordWrap(False)
+        self.games_table.setTextElideMode(Qt.TextElideMode.ElideRight)
+        vheader = self.games_table.verticalHeader()
+        vheader.setVisible(False)
+        vheader.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+        vheader.setMinimumSectionSize(34)
+        vheader.setDefaultSectionSize(34)
         self.games_table.setHorizontalHeaderLabels(
             ["Jeu", "Recompileur", "Sous-dossier", "Statut"]
         )
@@ -974,9 +978,10 @@ class MainWindow(QMainWindow):
 
         self.games_table.setRowCount(len(recs))
         for row, rec in enumerate(recs):
-            self.games_table.setItem(row, 0, QTableWidgetItem(rec.name))
-            self.games_table.setItem(row, 1, QTableWidgetItem(rec.recompiler_name))
-            self.games_table.setItem(row, 2, QTableWidgetItem(rec.folder.name))
+            for col, text in enumerate((rec.name, rec.recompiler_name, rec.folder.name)):
+                item = QTableWidgetItem(text)
+                item.setToolTip(text)
+                self.games_table.setItem(row, col, item)
 
             if not rec.is_installed:
                 status_text = "Non téléchargé"
@@ -993,9 +998,9 @@ class MainWindow(QMainWindow):
 
             status_item = QTableWidgetItem(status_text)
             status_item.setForeground(QColor(status_color))
+            status_item.setToolTip(status_text)
             self.games_table.setItem(row, 3, status_item)
-
-        self.games_table.resizeRowsToContents()
+            self.games_table.setRowHeight(row, 34)
 
         if self.current_match is not None:
             self._load_rom(self.current_match.nup.file_path)
@@ -1084,21 +1089,25 @@ class MainWindow(QMainWindow):
         if match.version_supported:
             self._set_badge("Recompilation disponible", "#064e3b", "#6ee7b7")
             dl_note = "" if rec.is_installed else " (sera téléchargé automatiquement au lancement)"
+            ver_note = f" [{match.detected_version_label}]" if match.detected_version_label else ""
             self.lbl_status_detail.setText(
-                f"Jeu supporté par {rec.recompiler_name}{dl_note}. {rec.description}"
+                f"Jeu supporté par {rec.recompiler_name}{ver_note}{dl_note}. {rec.description}"
             )
             self.btn_compile.setEnabled(self.worker is None)
         else:
-            expected = ", ".join(f"v{v}" for v in rec.supported_versions)
+            detail = match.version_mismatch_detail or (
+                f"Le recompileur attend {', '.join(f'v{v}' for v in rec.supported_versions)}, "
+                f"mais votre source est en v{nup.version}."
+            )
             self._set_badge("Version non correspondante", "#78350f", "#fde68a")
             self.lbl_status_detail.setText(
-                f"Le sous-dossier tools/recompilers/{rec.folder.name} attend la version {expected}, "
-                f"mais votre ROM est en v{nup.version}. Le recompileur risque de refuser le dump."
+                f"{detail} Le recompileur risque de refuser le dump ou de planter au démarrage."
             )
             self.btn_compile.setEnabled(self.worker is None)
 
+        ver_log = match.detected_version_label or f"v{nup.version}"
         self._append_log(
-            f"[Analyse] {rec.name} ({nup.title_id} v{nup.version}, {_format_size(nup.file_size)}) "
+            f"[Analyse] {rec.name} ({nup.title_id} {ver_log}, {_format_size(nup.file_size)}) "
             f"-> tools/recompilers/{rec.folder.name}"
         )
 
@@ -1129,6 +1138,27 @@ class MainWindow(QMainWindow):
 
         rec = self.current_match.recompiler
         rom_path = self.current_match.nup.file_path
+
+        if not self.current_match.version_supported:
+            detail = self.current_match.version_mismatch_detail or (
+                f"Version attendue : {', '.join(f'v{v}' for v in rec.supported_versions)}."
+            )
+            reply = QMessageBox.warning(
+                self,
+                "Version du jeu non correspondante",
+                f"La source sélectionnée ne correspond pas à la version attendue pour {rec.name}.\n\n"
+                f"{detail}\n\n"
+                "La recompilation risque d'échouer ou le jeu risque de planter au lancement.\n"
+                "Voulez-vous quand même continuer ?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                self._append_log(
+                    f"[Annulé] Version non correspondante pour {rec.name} ({detail})"
+                )
+                return
+
         out_dir = Path(out_text)
         game_sub = self._game_folder_name(rec)
         if out_dir.name.lower() != game_sub.lower():

@@ -173,8 +173,23 @@
       "0400380020056800"
     ],
     "supported_versions": [
-      0,
       65536
+    ],
+    "expected_builds": [
+      {
+        "version": 65536,
+        "label": "Update 65536 (v1.0.1)",
+        "nso_build_ids": {
+          "main": "663c2e087a083f05307f229dfc4042d5",
+          "subsdk0": "07e685d1c23a77a389fd205288ae904c",
+          "sdk": "41d4de4a3b78214ad20c896960df0e5e"
+        },
+        "exefs_sha256": {
+          "main": "35fe1cbe7ea983e1e6ce8716b98e884a2f6cfb02c9514d51ec2c00daa4addcde",
+          "sdk": "f306d21b0507dce55bd5c8c9a9fa48ffbf11f3cdc246c9fe78079895241546c9",
+          "subsdk0": "976e2076159e90775ba6d759f33a4f0ddc38fe887349787c4235bed69e63ab1f"
+        }
+      }
     ],
     "default_output_subdir": "Splatoon Raiders",
     "shortcut_name": "Splatoon Raiders",

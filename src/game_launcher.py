@@ -1094,10 +1094,22 @@ class GameLauncherWindow(QMainWindow):
                     resolved_rom_arg = rom_path
                     resolved_rom_env = rom_path
             else:
-                if (p / "exefs" / "main").is_file():
-                    resolved_rom_arg = str(p / "exefs")
-                elif (p / "main").is_file():
-                    resolved_rom_arg = str(p)
+                active_dir = p
+                updates_dir = p / "updates"
+                if updates_dir.is_dir():
+                    upd_candidates = [
+                        d for d in updates_dir.iterdir()
+                        if d.is_dir() and (d / "exefs" / "main").is_file()
+                    ]
+                    if upd_candidates:
+                        active_dir = max(
+                            upd_candidates,
+                            key=lambda d: int(d.name) if d.name.isdigit() else -1,
+                        )
+                if (active_dir / "exefs" / "main").is_file():
+                    resolved_rom_arg = str(active_dir / "exefs")
+                elif (active_dir / "main").is_file():
+                    resolved_rom_arg = str(active_dir)
                 else:
                     QMessageBox.warning(
                         self,
@@ -1105,9 +1117,9 @@ class GameLauncherWindow(QMainWindow):
                         self._tr("err_invalid_dir_msg"),
                     )
                     return
-                resolved_rom_env = rom_path
-                if (p / "romfs").is_dir():
-                    resolved_romfs_dir = str(p / "romfs")
+                resolved_rom_env = str(active_dir)
+                if (active_dir / "romfs").is_dir():
+                    resolved_romfs_dir = str(active_dir / "romfs")
 
         self._save_settings()
         env = dict(os.environ)
