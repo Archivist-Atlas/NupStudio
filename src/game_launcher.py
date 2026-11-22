@@ -621,7 +621,12 @@ class GameLauncherWindow(QMainWindow):
                 continue
             if p.is_file():
                 return str(p)
-            if p.is_dir() and ((p / "exefs").is_dir() or (p / "main").is_file()):
+            if p.is_dir() and (
+                (p / "exefs").is_dir()
+                or (p / "main").is_file()
+                or (p / "updates").is_dir()
+                or (p / "base").is_dir()
+            ):
                 return str(p)
         return ""
 

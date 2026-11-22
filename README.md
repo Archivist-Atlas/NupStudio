@@ -59,6 +59,11 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
   <img src="assets/screen_9.jpg" alt="Splatoon Raiders recompilé sur PC Windows" width="900">
 </p>
 
+## Star Fox
+<p align="center">
+  <img src="assets/screen_10.jpg" alt="Star Fox recompilé sur PC Windows" width="900">
+</p>
+
 
 ## Jeux supportés
 
@@ -73,6 +78,7 @@ Interface graphique Windows permettant d'explorer, extraire, packager des ROMs S
 | **Pokémon Pokopia** | Recompia (pokopia-recomp) | `0400A3A01EE4C000`, `0400A3A01EE4C800` | SDL3 / Vulkan |
 | **Hyrule Warriors: Age of Imprisonment** | HWAoI Recomp (Alano6678) | `04003F40232DE000`, `04003F40232DE800` | Win32 / Vulkan |
 | **Splatoon Raiders** | SPR Recomp (Elie-0066) | `0400380020056000`, `0400380020056800` | Win32 / Vulkan |
+| **Star Fox** | SpaceAnimalsRecomp (SerenityG4K) | `0400E88025B1A000`, `0400E88025B1A800` | Win32 / SDL3 / Vulkan |
 
 
 ## Fonctionnalités
@@ -133,6 +139,7 @@ Les personnes listées ci-dessous sont les **contributeurs des recompileurs init
 - **Pokémon Pokopia** (`Recompia / pokopia-recomp`) : Angel Toloza, AngelXex, Carson Kompon, Chaos192, deviann877, drako (`drakolordx7`), Exonot, featureJosh (`Josh` / `Josh Q.`), Fernando Brito, Jeff Harrison, jerban, Jones, Julio Andrade, kevobato, Krijn kok, mishap, Piktrip, tinfoil-chewer, xFractals (`pokopia-native`)
 - **Hyrule Warriors: Age of Imprisonment** (`HWAoI Recomp`) : Alano6678, LibertyPrime27, fgabe (basé sur DKB Recomp / Lucas-blip-png)
 - **Splatoon Raiders** (`SPR Recomp / SPR-Recomp-Project`) : Elie-0066 (Lyriiie), Ruben Ripalda (basé sur DKB Recomp / Lucas-blip-png et TotK Recomp / Valiantsin Dzerakh)
+- **Star Fox** (`SpaceAnimalsRecomp — StarFox Remake [recompiled]`) : SerenityG4K, Elenedeath (Elenedeath Olawir), sKuhLight, razzamatazm
 
 ### Contributeurs des outils NUP (Packager & Extractor)
 

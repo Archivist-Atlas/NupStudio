@@ -1228,7 +1228,7 @@ class MainWindow(QMainWindow):
 
     def _update_compile_progress(self, line: str) -> None:
         pct: Optional[int] = None
-        m_prog = re.match(r"^\s*progress\s+([0-9]+(?:\.[0-9]+)?)", line)
+        m_prog = re.match(r"^\s*(?:progress|@progres)\s+([0-9]+(?:\.[0-9]+)?)", line)
         if m_prog:
             pct = max(2, min(99, int(float(m_prog.group(1)) * 100)))
         else:
@@ -1831,6 +1831,9 @@ class MainWindow(QMainWindow):
 
             <h3>Splatoon Raiders (SPR Recomp / SPR-Recomp-Project)</h3>
             <p>Elie-0066 (Lyriiie), Ruben Ripalda (basé sur DKB Recomp / Lucas-blip-png et TotK Recomp / Valiantsin Dzerakh)</p>
+
+            <h3>Star Fox (SpaceAnimalsRecomp — StarFox Remake [recompiled])</h3>
+            <p>SerenityG4K, Elenedeath (Elenedeath Olawir), sKuhLight, razzamatazm</p>
 
             <h2>Outils NUP (Packager &amp; Extractor — indépendants des recompileurs)</h2>
             <h3>nup (<a href="https://github.com/a55uka/nup" style="color:#93c5fd;">github.com/a55uka/nup</a>)</h3>
